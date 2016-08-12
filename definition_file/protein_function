@@ -1,0 +1,6 @@
+ATPase	T2SS_gspE	T4P_pilB	T4P_pilT_pilU	Tad_tadA	Archaellum_FlaI
+IMplatform	T2SS_gspF	T4P_pilC	Tad_tadB	Tad_tadC	Archaellum_FlaJ
+minorPilin	T2SS_gspH	T2SS_gspI	T2SS_gspJ	T2SS_gspK	T4P_pilI_pilV	Tad_tadE	Tad_tadF	T2SS_gspG
+majorPilin	T2SS_gspG	T4P_pilAE	Tad_flp	Archaellum_FlaB
+prepilinPeptidase	T2SS_gspO	T4P_pilD	Tad_tadV	Archaellum_FlaK
+secretin	T2SS_gspD	T4P_pilQ	Tad_rcpA
