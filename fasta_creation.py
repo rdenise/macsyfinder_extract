@@ -11,7 +11,6 @@
 from Bio import SeqIO
 import sys
 import numpy as np
-import progressbar
 import rpy2.robjects as robjects
 import re
 import os
@@ -100,14 +99,13 @@ def find_in_fasta(fileFasta, fileReport, listOfFile):
 	print "# Writing ..."
 	print "#################\n"
 
-	bar = progressbar.ProgressBar(maxval=len(wanted), widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
 	progression=1
-	bar.start()
 
 	for seq in seqiter :
 	  if seq.id in wanted:
-			bar.update(progression)
-			progression+=1
+			sys.stdout.write("%.2f% : %i/%i sequences wanted found\r" %(progression/float(info_tab.shape[0])*100, progression,info_tab.shape[0]))
+			sys.stdout.flush()
+			progression += 1
 
 			index = wanted.index(seq.id)
 			seq.description = ''
@@ -121,11 +119,11 @@ def find_in_fasta(fileFasta, fileReport, listOfFile):
 			else :
 				sys.exit("ERROR:: Function not known : "+keys_genes[index])
 
+	print "Done!"
+
 	#Close all file
 	for open_file in list_handle:
 		open_file.close()
-
-	bar.finish()
 
 	print "\n#################"
 	print "# File wrote"
@@ -185,9 +183,7 @@ def rename_name_gene(listOfFile) :
 
 	seq_to_rename = find_rename_fasta(new_listOfFile)
 	dict_count = dict([(sequence[1:].rstrip(" "), 0) for sequence in seq_to_rename])
-	bar = progressbar.ProgressBar(maxval=len(new_listOfFile), widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
 	progression=1
-	bar.start()
 
 	create_folder(PATH_FASTA_RENAME)
 
@@ -195,7 +191,8 @@ def rename_name_gene(listOfFile) :
 
 		file_name = os.path.basename(file)
 
-		bar.update(progression)
+		sys.stdout.write("%.2f% : %i/%i files renamed\r" %(progression/float(info_tab.shape[0])*100, progression,info_tab.shape[0]))
+		sys.stdout.flush()
 		progression += 1
 
 		handle = open(PATH_FASTA_RENAME+file_name, 'w')
@@ -214,7 +211,8 @@ def rename_name_gene(listOfFile) :
 					seq.description = ""
 			SeqIO.write(seq, handle, "fasta")
 		handle.close()
-	bar.finish()
+
+	print "Done!"
 	return
 
 ##########################################################################################
@@ -238,16 +236,15 @@ def create_verified_fasta(listOfFile):
 
 	info_extract = np.loadtxt("/Users/rdenise/Documents/de_sophie_a_remi/pour_remi/experiment_validated_systems/all_seq_to_extract_annot.dat", dtype="string")
 
-	bar = progressbar.ProgressBar(maxval=info_extract.shape[0], widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
 	progression=1
-	bar.start()
 
 	seqiter = SeqIO.parse("/Users/rdenise/Documents/de_sophie_a_remi/pour_remi/experiment_validated_systems/all_genes_all_systems.fasta", "fasta")
 
 	for seq in seqiter :
 		if seq.id in info_extract[:,0] :
 
-			bar.update(progression)
+			sys.stdout.write("%.2f% : %i/%i sequences wanted found\r" %(progression/float(info_tab.shape[0])*100, progression,info_tab.shape[0]))
+			sys.stdout.flush()
 			progression += 1
 
 			position = info_extract[:,0].tolist().index(seq.id)
@@ -275,7 +272,7 @@ def create_verified_fasta(listOfFile):
 
 					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 
-	bar.finish()
+	print "Done!"
 	return
 
 ##########################################################################################
