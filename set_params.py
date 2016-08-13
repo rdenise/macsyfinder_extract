@@ -11,6 +11,7 @@
 import numpy as np
 from Bio import SeqIO
 import glob
+import os
 
 ##########################################################################################
 ##########################################################################################
@@ -51,7 +52,8 @@ def read_protein_function(file_function):
     """
 
     dict_function={}
-    functions=np.loadtxt(file_function, , dtype='string', delimiter="\t")
+    with open(file_function,"r") as r_file:
+        functions=[line.split() for line in r_file]
     for function in functions:
         dict_function.update({protein:function[0] for protein in function[1:]})
     return dict_function
@@ -75,8 +77,8 @@ def set_cutoff(fasta_file):
         list_len.append(len(seq))
     numpy_len=np.array(list_len)
 
-    upper=np.mean(numpy_len)+2*np.std(numpy_len)
-    lower=np.mean(numpy_len)+2*np.std(numpy_len)
+    upper=int(np.mean(numpy_len)+2*np.std(numpy_len))
+    lower=int(np.mean(numpy_len)+2*np.std(numpy_len))
 
     if lower < 0 :
         lower=0
@@ -85,13 +87,50 @@ def set_cutoff(fasta_file):
 
 ##########################################################################################
 
-def set_dict_cutoff(listOfFasta):
+def set_dict_cutoff_init(listOfFasta, user_folder):
+
+    """
+    Function used create the cutoff dictionnary for each concatenated fasta and
+    write the cutoff file in the folder of the analysis.
+
+    :param listOfFasta: List of all the file fasta where we need to remove sequences
+    :type: list of string
+    :param user_folder: the absolute path of the folder use by the user_folder
+    :type: string
+    :return: the cutoff dictionnary set with the name of the file in key and the
+    lower and upper cutoff as value
+    :rtype: dict
+    """
+
+    fid=os.path.join(user_folder,"info_folder","proteins.cutoff")
     cutoff_dict={}
     array_for_file=[]
-	for Fastafile in listOfFasta :
-		current_file = Fastafile.split("/")[-1]
+    for Fastafile in listOfFasta :
+    	current_file = Fastafile.split("/")[-1]
         cutoff_dict[current_file]=set_cutoff(fasta_file)
         array_for_file.append([current_file]+cutoff_dict[current_file])
 
     header=["file", "lower_cutoff", "upper_cutoff"]
-    np.savetxt(fid, self.classes ,delimiter="\t", fmt="%.2f", header=header)  
+    np.savetxt(fid, self.classes ,delimiter="\t", fmt="%.2f", header=header)
+    return cutoff_dict
+
+##########################################################################################
+
+def set_dict_cutoff(cutoff_file):
+
+    """
+    Function used create the cutoff dictionnary if the file exist (file give in
+    argument).
+
+    :param cutoff_file: File with the name of the file in first column and the
+    lower and upper cutoff on the other
+    :type: string
+    :return: the cutoff dictionnary set with the name of the file in key and the
+    lower and upper cutoff as value
+    :rtype: dict
+    """
+
+    tab_numpy=np.loadtxt(cutoff_file, delimiter="\t", skiprows=1, dtype=np.object)
+    cutoff_dict={line[0]:line[1:] for line in tab_numpy}
+
+    return cutoff_dict

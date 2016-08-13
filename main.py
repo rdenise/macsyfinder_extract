@@ -20,8 +20,6 @@ rename_name_gene(robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep=''))
 
 #cut_seq_fasta_file(list_file_detected)
 
-#execfile(PATH_SCRIPT_PYTHON+"selection_uclust.py")
-
 #print "\n#################"
 #print "# Concatetaned file"
 #print "#################\n"

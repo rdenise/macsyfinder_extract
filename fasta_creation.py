@@ -25,30 +25,7 @@ from set_params import *
 ##########################################################################################
 ##########################################################################################
 
-
-
-
-PATH_FASTA_VERIFIED = "/Users/rdenise/Documents/Analysis_tree/fasta_verify/rename/"
-
-PATH_FASTA_DETECTED = "/Users/rdenise/Documents/Analysis_tree/fasta_detected/21_04_16/"
-
-PATH_FASTA_DETECTED_CUTOFF = PATH_FASTA_DETECTED+"cut_off/"
-
-PATH_FASTA_DETECTED_CLUSTERED = PATH_FASTA_DETECTED_CUTOFF+"clustered/"
-
-PATH_FASTA_CONCATENATED = "/Users/rdenise/Documents/Analysis_tree/fasta_concatenated/21_04_16/"
-
-PATH_FASTA_RENAME = "/Users/rdenise/Documents/Analysis_tree/fasta_detected/21_04_16/rename_fasta/"
-
-PATH_SCRIPT_PYTHON = "/Users/rdenise/Documents/script_python"
-
-DICT_CUTOFF = {"ATPase.fasta" : 690,
-				"prepilinPeptidase.fasta" : 400,
-				"IMplatform.fasta" : 450,
-				"majorPilin.fasta" : 0,
-				"minorPilin.fasta" : 500,
-				"secretin.fasta" : 900,
-				"Archaellum.fasta" : 0}
+PROTEIN_FUNCTION = read_protein_function(os.path.join(os.path.dirname(os.path.realpath(__file__)),"definition_file/protein_function.def"))
 
 ##########################################################################################
 ##########################################################################################
@@ -58,9 +35,7 @@ DICT_CUTOFF = {"ATPase.fasta" : 690,
 ##########################################################################################
 ##########################################################################################
 
-
-
-def extract_protein(fileReport):
+def extract_protein(fileReport, PATH_FASTA_DETECTED):
 
 	"""
 	This function is used to select the sequence identified by MacSyFinder and create a fasta with these sequences.
@@ -96,58 +71,13 @@ def extract_protein(fileReport):
 
 	new_name = [report_table[i][1]+'_'+report_table[i][6]+'_D_'+"_".join(report_table[i][4].split('_')[1:]) for i in xrange(report_table.shape[0])]
 
-	"""
-	print "\n#################"
-	print "# Selection protein"
-	print "#################\n"
-
-	remove_from_new_name = []
-
-	current_index = 0
-
-
-	with open(PATH_FASTA_DETECTED+"view_delete_protein.log", "w") as log_file :
-		for current_name in new_name:
-
-			if current_index in remove_from_new_name :
-				pass
-
-			else :
-				all_same = np.where(np.array(new_name) == current_name)[0].tolist()
-
-				try :
-					choice = np.argmin(report_table[all_same,10].astype(np.float))
-				except IndexError :
-					#print report_table[all_same,10].astype(np.float), all_same, current_name
-					print all_same, current_name, len(new_name), len(report_table)
-					sys.exit(0)
-
-				seq_choice = all_same[choice]
-
-				del all_same[choice]
-
-				log_file.write("###\nChoose :\n")
-				log_file.write("\t".join(report_table[seq_choice,:].tolist())+"\n")
-				log_file.write("---\nDelete :\n")
-				if all_same == [] :
-					log_file.write("None\n")
-				else :
-					for seq_delete in all_same :
-						log_file.write("\t".join(report_table[seq_delete,:].tolist())+"\n")
-						remove_from_new_name.append(seq_delete)
-
-			current_index += 1
-
-	new_name = np.delete(np.array(new_name), np.array(remove_from_new_name)).tolist()
-	report_table = np.delete(report_table, np.array(remove_from_new_name), axis=0)
-	"""
 	return report_table[:,0].tolist(), new_name, report_table[:,4].tolist()
 
 ##########################################################################################
 ##########################################################################################
 
 
-def find_in_fasta(fileFasta, fileReport) :
+def find_in_fasta(fileFasta, fileReport, listOfFile):
 
 	"""
 	This function is used to create the fasta with MacSyFinder hits found
@@ -155,18 +85,15 @@ def find_in_fasta(fileFasta, fileReport) :
 	:param fileFasta: name of the fasta database used in the MacSyfinder analysis
 	:type: string
 	:param fileReport: name of the file .report of the MacSyFinder analysis
+	:type: string
+	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
+	:type: list of string
 	:return: Nothing
 	"""
 
-	ATPase_file = open(PATH_FASTA_DETECTED+"ATPase.fasta", "w")
-	Prep_pep_file = open(PATH_FASTA_DETECTED+'prepilinPeptidase.fasta',"w")
-	IM_file = open(PATH_FASTA_DETECTED+'IMplatform.fasta','w')
-	pilin_maj_file = open(PATH_FASTA_DETECTED+'majorPilin.fasta','w')
-	pilin_min_file = open(PATH_FASTA_DETECTED+'minorPilin.fasta','w')
-	secretin_file = open(PATH_FASTA_DETECTED+'secretin.fasta','w')
+	list_handle=[open(file,"w") for file in listOfFile]
 
-
-	wanted, name_genes, keys_genes = extract_protein(fileReport)
+	wanted, name_genes, keys_genes = extract_protein(fileReport, PATH_FASTA_DETECTED)
 	seqiter = SeqIO.parse(open(fileFasta), 'fasta')
 
 	print "\n#################"
@@ -188,28 +115,15 @@ def find_in_fasta(fileFasta, fileReport) :
 			seq.id = seq.name
 
 			if keys_genes[index] in PROTEIN_FUNCTION :
-				if PROTEIN_FUNCTION[keys_genes[index]] == "ATPase" :
-					SeqIO.write(seq , ATPase_file, "fasta")
-				elif PROTEIN_FUNCTION[keys_genes[index]] == "prepilinPeptidase" :
-					SeqIO.write(seq, Prep_pep_file, "fasta")
-				elif PROTEIN_FUNCTION[keys_genes[index]] == 'IMplatform' :
-					SeqIO.write(seq, IM_file, "fasta")
-				elif PROTEIN_FUNCTION[keys_genes[index]] == 'majorPilin' :
-					SeqIO.write(seq, pilin_maj_file, "fasta")
-				elif PROTEIN_FUNCTION[keys_genes[index]] == 'minorPilin' :
-					SeqIO.write(seq, pilin_min_file, "fasta")
-				elif PROTEIN_FUNCTION[keys_genes[index]] == 'secretin' :
-					SeqIO.write(seq, secretin_file, "fasta")
+				writing_file = re.search('[a-zA-Z0-9/_]+'+PROTEIN_FUNCTION[keys_genes[index]]+'\.fasta', "\t".join(listOfFile)).group(0)
+
+				SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 			else :
-				sys.exit("ERROR:: Function Not Know : "+keys_genes[index])
+				sys.exit("ERROR:: Function not known : "+keys_genes[index])
 
 	#Close all file
-	ATPase_file.close()
-	Prep_pep_file.close()
-	IM_file.close()
-	pilin_maj_file.close()
-	pilin_min_file.close()
-	secretin_file.close()
+	for open_file in list_handle:
+		open_file.close()
 
 	bar.finish()
 
@@ -237,9 +151,9 @@ for ( file in vect_file) {
 	newline=c()
 	for (i in 1:length(lines)) {
 		if (">" == strsplit(lines[i], "")[[1]][1]) {
-		 newline = c(newline, lines[i])}
-		 }
-	final_vec = c(final_vec, names(table(newline)[table(newline) != 1]))
+			newline = c(newline, lines[i])}
+		}
+		final_vec = c(final_vec, names(table(newline)[table(newline) != 1]))
 	}
 	return(final_vec) }
 ''')
@@ -251,7 +165,7 @@ for ( file in vect_file) {
 def rename_name_gene(listOfFile) :
 
 	"""
-	Function use to rename the sequence ids of sequence with the same name in the same file
+	Function use to rename the sequence IDs of sequence with the same name in the same file
 
 	:param new_listOfFile: list of all the file where we need to check if there are a same sequence
 	id twice (or more) in the same file with absolute paths
@@ -320,10 +234,7 @@ def create_verified_fasta(listOfFile):
 	print "# Verified Fasta"
 	print "#################\n"
 
-	list_handle = []
-
-	for file in listOfFile :
-		list_handle.append(open(file, 'w'))
+	list_handle = [open(file, 'w') for file in listOfFile]
 
 	info_extract = np.loadtxt("/Users/rdenise/Documents/de_sophie_a_remi/pour_remi/experiment_validated_systems/all_seq_to_extract_annot.dat", dtype="string")
 
@@ -344,7 +255,7 @@ def create_verified_fasta(listOfFile):
 			if info_extract[position][1].split("_")[0] in ['T2SS','T4P', 'Tad']:
 
 				if info_extract[position][1] in PROTEIN_FUNCTION :
-					writing_file = re.search('[a-zA-Z/_]+'+PROTEIN_FUNCTION[info_extract[position][1]]+'\.fasta', "\t".join(listOfFile)).group(0)
+					writing_file = re.search('[a-zA-Z0-9/_]+'+PROTEIN_FUNCTION[info_extract[position][1]]+'\.fasta', "\t".join(listOfFile)).group(0)
 
 					seq.name = info_extract[position][3]+"_V_"+"_".join(info_extract[position][1].split("_")[1:])
 					seq.id = seq.name
@@ -356,7 +267,7 @@ def create_verified_fasta(listOfFile):
 				new_name = info_extract[position][2]+"_"+info_extract[position][1]
 
 				if new_name in PROTEIN_FUNCTION :
-					writing_file = re.search('[/a-zA-Z_]*'+PROTEIN_FUNCTION[new_name]+'\.fasta', "\t".join(listOfFile)).group(0)
+					writing_file = re.search('[/a-zA-Z0-9_]*'+PROTEIN_FUNCTION[new_name]+'\.fasta', "\t".join(listOfFile)).group(0)
 
 					seq.name = info_extract[position][3]+"_V_"+info_extract[position][1]
 					seq.id = seq.name
@@ -365,11 +276,12 @@ def create_verified_fasta(listOfFile):
 					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 
 	bar.finish()
+	return
 
 ##########################################################################################
 ##########################################################################################
 
-def cut_seq_fasta_file(listOfFasta) :
+def cut_seq_fasta_file(listOfFasta, file_cutoff=None, user_folder=None) :
 
 	"""
 	Function used to remove some sequence in the concatenated fasta, that after futher
@@ -380,6 +292,11 @@ def cut_seq_fasta_file(listOfFasta) :
 	:return: Nothing
 	"""
 
+	if file_cutoff is not None :
+		DICT_CUTOFF=set_dict_cutoff(cutoff_file)
+	else :
+		DICT_CUTOFF=set_dict_cutoff_init(listOfFasta, user_folder)
+
 	print "\n#################"
 	print "# Cut concatetaned file"
 	print "#################\n"
@@ -389,16 +306,13 @@ def cut_seq_fasta_file(listOfFasta) :
 
 	for file in listOfFasta :
 		current_file = file.split("/")[-1]
-
 		if current_file in DICT_CUTOFF:
-
 			if DICT_CUTOFF[current_file] != 0 :
-
 				with open(new_path+current_file, "w") as writing_file :
 					seqiter = SeqIO.parse(open(file), 'fasta')
-
 					for seq in seqiter :
 						if len(seq) < DICT_CUTOFF[current_file] :
 							SeqIO.write(seq, writing_file,"fasta")
 			else :
 				os.system(" ".join(["cp",file,new_path+current_file]))
+	return
