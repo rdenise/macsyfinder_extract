@@ -19,22 +19,12 @@ from set_params import *
 ##########################################################################################
 ##########################################################################################
 ##
-##								Global variable
-##
-##########################################################################################
-##########################################################################################
-
-PROTEIN_FUNCTION = read_protein_function(os.path.join(os.path.dirname(os.path.realpath(__file__)), "definition_file/protein_function.def"))
-
-##########################################################################################
-##########################################################################################
-##
 ##								Functions
 ##
 ##########################################################################################
 ##########################################################################################
 
-def extract_protein(fileReport, PATH_FASTA_DETECTED):
+def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 
 	"""
 	This function is used to select the sequence identified by MacSyFinder and
@@ -42,9 +32,11 @@ def extract_protein(fileReport, PATH_FASTA_DETECTED):
 
 	:param fileReport: the file .report of the MacSyFinder analysis
 	:type: string
-	:param PATH_FASTA_DETECTED: absolute path of the folder where the rename will
+	:param INFO: absolute path of the info_folder
 	be write
 	:type: string
+	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
+	:type: dict
 	:return: the list of the sequence ids of the hit find by MacSyFinder, the
 	list of all the new name for each sequences and the reference systems for
 	each sequence.
@@ -70,7 +62,7 @@ def extract_protein(fileReport, PATH_FASTA_DETECTED):
 		else :
 			index_remove.append(index)
 
-	np.savetxt(os.path.join(PATH_FASTA_DETECTED, "remove_seq.seq"), report_table[np.array(index_remove),:], delimiter="\t", fmt="%s")
+	np.savetxt(os.path.join(INFO, "remove_report.seq"), report_table[np.array(index_remove),:], delimiter="\t", fmt="%s")
 	report_table = np.delete(report_table, index_remove, axis=0)
 	number_remove_protein = len(index_remove)
 
@@ -85,7 +77,7 @@ def extract_protein(fileReport, PATH_FASTA_DETECTED):
 ##########################################################################################
 
 
-def find_in_fasta(fileFasta, fileReport, listOfFile, PATH_FASTA_DETECTED):
+def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 
 	"""
 	This function is used to create the fasta with MacSyFinder hits found
@@ -96,15 +88,16 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, PATH_FASTA_DETECTED):
 	:type: string
 	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
 	:type: list of string
-	:param PATH_FASTA_DETECTED: absolute path of the folder where the rename will
-	be write
+	:param INFO: absolute path of the info_folder
 	:type: string
+	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
+	:type: dict
 	:return: Nothing
 	"""
 
 	list_handle=[open(my_file,"w") for my_file in listOfFile]
 
-	wanted, name_genes, keys_genes = extract_protein(fileReport, PATH_FASTA_DETECTED)
+	wanted, name_genes, keys_genes = extract_protein(fileReport, INFO, PROTEIN_FUNCTION)
 	seqiter = SeqIO.parse(open(fileFasta), 'fasta')
 
 	print "\n#################"
@@ -220,9 +213,11 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 				else :
 					dict_count[seq.id] += 1
 					if "NC_" in seq.id :
+						#New name : NC_XXXXXX[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_D_nomProteine
 						seq.id = "_".join(seq.id.split("_")[:2])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq.id.split("_")[2:])
 
 					else :
+						#New name : NNNN[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_V_nomProteine
 						seq.id = seq.id.split("_")[0]+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq.id.split("_")[1:])
 					seq.name = seq.id
 					seq.description = ""
@@ -237,13 +232,15 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 ##########################################################################################
 ##########################################################################################
 
-def create_verified_fasta(listOfFile):
+def create_verified_fasta(listOfFile, PROTEIN_FUNCTION):
 
 	"""
 	Function used to extract the verified sequences for ATPase, prepilin peptidase, pilin (major and minor), IM platform
 
 	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
 	:type: list of string
+	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
+	:type: dict
 	:return: Nothing
 	"""
 
@@ -299,7 +296,7 @@ def create_verified_fasta(listOfFile):
 ##########################################################################################
 ##########################################################################################
 
-def cut_seq_fasta_file(listOfFasta, file_cutoff=None, user_folder=None) :
+def cut_seq_fasta_file(listOfFasta, PATH_FASTA_DETECTED_CUTOFF, file_cutoff=None, INFO_folder=None) :
 
 	"""
 	Function used to remove some sequence in the concatenated fasta, that after futher
@@ -307,6 +304,12 @@ def cut_seq_fasta_file(listOfFasta, file_cutoff=None, user_folder=None) :
 
 	:param listOfFasta: List of all the file fasta where we need to remove sequences
 	:type: list of string
+	:param PATH_FASTA_DETECTED_CUTOFF: path to the detected cutoff folder
+	:type: string
+	:param file_cutoff: Name of the tabular file with the information for the cutoff if exist
+	:type: string
+    :param INFO_folder: the absolute path to the info folder
+    :type: string
 	:return: Nothing
 	"""
 
@@ -319,15 +322,36 @@ def cut_seq_fasta_file(listOfFasta, file_cutoff=None, user_folder=None) :
 	print "# Cut concatetaned file"
 	print "#################\n"
 
-	dirname = os.path.dirname(listOfFasta[0])
-	create_folder(new_path)
+	REMOVE = os.path.join(PATH_FASTA_DETECTED_CUTOFF, "remove")
+	NEW_FASTA = os.path.join(PATH_FASTA_DETECTED_CUTOFF, "new_fasta")
 
-	for file in listOfFasta :
-		current_file = os.path.basename(file)
+	create_folder(REMOVE)
+	create_folder(NEW_FASTA)
+
+	for my_file in listOfFasta :
+		current_file = os.path.basename(my_file)
 		if current_file in DICT_CUTOFF:
-			with open(os.path.join(dirname, "cut_off", current_file), "w") as writing_file :
-				seqiter = SeqIO.parse(open(file), 'fasta')
-				for seq in seqiter :
-					if len(seq) < DICT_CUTOFF[current_file][1] and  len(seq) > DICT_CUTOFF[current_file][0] :
-						SeqIO.write(seq, writing_file,"fasta")
+			with open(os.path.join(NEW_FASTA, current_file), "w") as writing_file :
+				with open(os.path.join(REMOVE, "remove."current_file), "w") as writing_file_remove :
+					seqiter = SeqIO.parse(open(my_file), 'fasta')
+					for seq in seqiter :
+						if len(seq) < DICT_CUTOFF[current_file][1] and  len(seq) > DICT_CUTOFF[current_file][0] :
+							SeqIO.write(seq, writing_file,"fasta")
+						else :
+							SeqIO.write(seq, writing_file_remove,"fasta")
 	return
+
+##########################################################################################
+##########################################################################################
+
+def concatenate_detected_verified(PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO_folder):
+
+	"""
+	Function that concatenate the verified and detected file and remove detected sequences
+	that are already in the verified file. It write a file in the inforation folder in
+	markdown format to know which sequences are extract and which verified sequences are
+	the same of this one.
+
+	
+	:return: Nothing
+	"""

@@ -87,7 +87,7 @@ def set_cutoff(fasta_file):
 
 ##########################################################################################
 
-def set_dict_cutoff_init(listOfFasta, user_folder):
+def set_dict_cutoff_init(listOfFasta, INFO_folder):
 
     """
     Function used create the cutoff dictionnary for each concatenated fasta and
@@ -95,14 +95,14 @@ def set_dict_cutoff_init(listOfFasta, user_folder):
 
     :param listOfFasta: List of all the file fasta where we need to remove sequences
     :type: list of string
-    :param user_folder: the absolute path of the folder use by the user_folder
+    :param INFO_folder: the absolute path to the info folder
     :type: string
     :return: the cutoff dictionnary set with the name of the file in key and the
     lower and upper cutoff as value
     :rtype: dict
     """
 
-    fid=os.path.join(user_folder,"info_folder","proteins.cutoff")
+    fid=os.path.join(INFO_folder,"proteins.cutoff")
     cutoff_dict={}
     array_for_file=[]
     for Fastafile in listOfFasta :
