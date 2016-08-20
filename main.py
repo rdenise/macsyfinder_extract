@@ -140,5 +140,8 @@ if args.concat :
 	PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated")
 	create_folder(PATH_FASTA_CONCATENATED)
 
-	cmd_cat = 'for file in `ls %s` ; do cat "%s$file" "%s$file" > "%s$file" ; done' % (PATH_FASTA_VERIFIED, PATH_FASTA_DETECTED,PATH_FASTA_VERIFIED,PATH_FASTA_CONCATENATED)
-	os.system(cmd_cat)
+	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED)
+
+print "\n#################"
+print "# End"
+print "#################\n"
