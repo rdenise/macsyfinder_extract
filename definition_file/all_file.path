@@ -1,8 +1,0 @@
-A voir si je l'utilise
-
-PATH_FASTA_VERIFIED = "/Users/rdenise/Documents/Analysis_tree/fasta_verify/rename/"
-PATH_FASTA_DETECTED = "/Users/rdenise/Documents/Analysis_tree/fasta_detected/21_04_16/"
-PATH_FASTA_CONCATENATED = "/Users/rdenise/Documents/Analysis_tree/fasta_concatenated/21_04_16/"
-PATH_FASTA_RENAME = "/Users/rdenise/Documents/Analysis_tree/fasta_detected/21_04_16/rename_fasta/"
-
-PATH_FASTA_DETECTED_CUTOFF = PATH_FASTA_DETECTED+"cut_off/"
