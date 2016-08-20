@@ -137,10 +137,6 @@ if args.cutoff :
 	list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='')
 
 if args.concat :
-	print "\n#################"
-	print "# Concatetaned file"
-	print "#################\n"
-
 	PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated")
 	create_folder(PATH_FASTA_CONCATENATED)
 

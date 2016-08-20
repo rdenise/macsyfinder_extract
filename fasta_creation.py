@@ -105,10 +105,11 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 	print "#################\n"
 
 	progression=1
+	seq_wanted = len(wanted)
 
 	for seq in seqiter :
 	  if seq.id in wanted:
-			sys.stdout.write("%.2f% : %i/%i sequences wanted found\r" %(progression/float(info_tab.shape[0])*100, progression,info_tab.shape[0]))
+			sys.stdout.write("%.2f% : %i/%i sequences wanted found\r" %(progression/float(seq_wanted)*100, progression,seq_wanted))
 			sys.stdout.flush()
 			progression += 1
 
@@ -192,6 +193,7 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 	seq_to_rename = find_rename_fasta(new_listOfFile)
 	dict_count = dict([(sequence[1:].rstrip(" "), 0) for sequence in seq_to_rename])
 	progression=1
+	number_of_file = len(new_listOfFile)
 
 	create_folder(PATH_FASTA_RENAME)
 
@@ -199,7 +201,7 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 
 		file_name = os.path.basename(my_file)
 
-		sys.stdout.write("%.2f% : %i/%i files renamed\r" %(progression/float(info_tab.shape[0])*100, progression,info_tab.shape[0]))
+		sys.stdout.write("%.2f% : %i/%i files renamed\r" %(progression/float(number_of_file)*100, progression,number_of_file))
 		sys.stdout.flush()
 		progression += 1
 
@@ -261,7 +263,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION):
 	for seq in seqiter :
 		if seq.id in info_extract[:,0] :
 
-			sys.stdout.write("%.2f% : %i/%i sequences wanted found\r" %(progression/float(info_tab.shape[0])*100, progression,info_tab.shape[0]))
+			sys.stdout.write("%.2f% : %i/%i sequences wanted found\r" %(progression/float(info_extract.shape[0])*100, progression,info_extract.shape[0]))
 			sys.stdout.flush()
 			progression += 1
 
@@ -344,14 +346,112 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_DETECTED_CUTOFF, file_cutoff=None
 ##########################################################################################
 ##########################################################################################
 
-def concatenate_detected_verified(PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO_folder):
+def write_remove_concatenate(dict_remove, INFO_folder):
+
+	"""
+	This function write a file in the information folder in markdown format to
+	know which sequences are extract and which verified sequences are the same
+	of this one.
+
+	:param dict_remove: dictionnary create by the function concatenate_detected_verified()
+	:type: dict
+	:param INFO_folder: the absolute path to the info folder
+	:type: string
+	:return: Nothing
+	"""
+
+	print "\n#################"
+	print "# Info concatetaned file"
+	print "#################\n"
+
+	info_concatenate_file = os.path.join(INFO_folder, "remove_concatenate.md")
+
+	with open(info_concatenate_file, "w") as w_file :
+		for remove_system in dict_remove :
+			w_file.write("# Systems remove in concatenation\n")
+			w_file.write("## System %s :::: %s identical\n" %(remove_system, dict_remove[remove_system][0]))
+			SeqIO.write(dict_remove[remove_system][1])
+			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
+			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
+
+	return
+
+##########################################################################################
+##########################################################################################
+
+
+def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO_folder, PATH_FASTA_CONCATENATED):
 
 	"""
 	Function that concatenate the verified and detected file and remove detected sequences
-	that are already in the verified file. It write a file in the inforation folder in
+	that are already in the verified file. It write a file in the information folder in
 	markdown format to know which sequences are extract and which verified sequences are
 	the same of this one.
 
-	
+	:param fasta_name: the name of all the fasta file create ([protein_function].fasta)
+	:type: list of string
+	:param PATH_FASTA_DETECTED: absolute path to detected fasta folder
+	:type: string
+	:param PATH_FASTA_VERIFIED: absolute path to verified fasta folder
+	:type: string
+	:param INFO_folder: the absolute path to the info folder
+	:type: string
+	:param PATH_FASTA_CONCATENATED: absolute path to concatenated fasta folder
+	:type: string
 	:return: Nothing
 	"""
+
+	print "\n#################"
+	print "# Concatetaned file"
+	print "#################\n"
+
+	for fasta_file in fasta_name :
+		verified_fasta=os.path.join(fasta_file, PATH_FASTA_VERIFIED)
+		detected_fasta=os.path.join(fasta_file, PATH_FASTA_DETECTED)
+		concatenated_fasta=os.path.join(fasta_file, PATH_FASTA_CONCATENATED)
+
+		os.system('cat "%s" > "%s"') %(verified_fasta, concatenated_fasta)
+
+		list_seq_verified = list(SeqIO.parse(verified_fasta, "fasta"))
+		list_id_verified = [seq.id for seq in list_seq_verified]
+		list_seq_verified = [seq.seq for seq in list_seq_verified]
+
+		seq_parser = SeqIO.parse(detected_fasta, "fasta")
+		number_seq = len(seq_parser)
+		progression = 1
+
+		# Dictionaire avec en clef l'id espèce/système et en value une liste
+		# ["l'id espèce/système du verifié qui correspond", [liste des sequences ATPase, IM ...]]
+		dict_remove = {}
+
+		seq_parser = SeqIO.parse(detected_fasta, "fasta")
+
+		with open(concatenated_fasta, "w") as w_file :
+			for seq in seq_parser :
+
+				sys.stdout.write("File : %s -> %.2f% : %i/%i sequences detected read\r" %(fasta_file, progression/float(info_extract.shape[0])*100, progression,info_extract.shape[0]))
+				sys.stdout.flush()
+				progression += 1
+
+				id_seq=seq.id.split("_")
+				id_seq="_".join(id_seq[id_seq.index("D"):])
+
+				if id_seq in dict_remove :
+					dict_remove[id_seq][1].append(seq)
+
+				elif seq.seq in list_seq_verified :
+					index=list_seq_verified.index(seq.seq)
+
+					id_seq_verif = list_id_verified[index].split("_")
+					id_seq_verif = "_".join(id_seq[id_seq_verif.index("V"):])
+
+					dict_remove[id_seq]=[id_seq_verif,[seq]]
+
+				else :
+					SeqIO.write(seq, "fasta")
+		print("File : %s -> Done!" % fasta_file)
+
+	# Dict remove complete and all concatenate write
+	write_remove_concatenate(dict_remove, INFO_folder)
+
+	return
