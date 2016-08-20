@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
 || / ___|  ___  __ _ _   _  ___ _ __   ___ ___  | ____|_  _| |_ _ __ __ _  ___| |_ ___  _ __
 || \___ \ / _ \/ _` | | | |/ _ \ '_ \ / __/ _ \ |  _| \ \/ / __| '__/ _` |/ __| __/ _ \| '__|
 ||  ___) |  __/ (_| | |_| |  __/ | | | (_|  __/ | |___ >  <| |_| | | (_| | (__| || (_) | |
-|| |____/ \___|\__, |\__,_|\___|_| |_|\___\___| |_____/_/\_\\__|_|  \__,_|\___|\__\___/|_|
+|| |____/ \___|\__, |\__,_|\___|_| |_|\___\___| |_____/_/\_\\\__|_|  \__,_|\___|\__\___/|_|
 ||                |_|
 
 
@@ -108,7 +108,7 @@ list_file = robjects.StrVector(all_function)
 #Si j'ai l'option verifié mise en place je demande les deux options
 if args.veriFile or args.veriData :
 	if not (args.veriFile and args.veriData):
-    	parser.error("you MUST provided a verified fasta file and a annotation data file. If you want verified fasta")
+		parser.error("you MUST provided a verified fasta file and a annotation data file. If you want verified fasta")
 	else :
 		PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified")
 		create_folder(PATH_FASTA_VERIFIED)

@@ -334,7 +334,7 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_DETECTED_CUTOFF, file_cutoff=None
 		current_file = os.path.basename(my_file)
 		if current_file in DICT_CUTOFF:
 			with open(os.path.join(NEW_FASTA, current_file), "w") as writing_file :
-				with open(os.path.join(REMOVE, "remove."current_file), "w") as writing_file_remove :
+				with open(os.path.join(REMOVE, "remove."+current_file), "w") as writing_file_remove :
 					seqiter = SeqIO.parse(open(my_file), 'fasta')
 					for seq in seqiter :
 						if len(seq) < DICT_CUTOFF[current_file][1] and  len(seq) > DICT_CUTOFF[current_file][0] :
