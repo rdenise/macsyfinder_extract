@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
+import argparse
+from textwrap import dedent
+import sys, os
+
+sys.path.insert(0, os.path.abspath('library'))
 
 from set_params import *
 from fasta_creation import *
 from merge_generique_all import *
-import argparse
-from textwrap import dedent
 
 ##########################################################################################
 ##########################################################################################
@@ -84,9 +87,9 @@ extraction_option.add_argument("-conc",'--concatenate',
 							help="Allow to concatenate detected sequences and verified sequences")
 
 merge_option = parser.add_argument_group(title = "Merge report options")
-extraction_option.add_argument("-m",'--merge',
+merge_option.add_argument("-m",'--merge',
 							metavar=("<OTHER_REPORT>", "<GENERIQUE_REPORT>"),
-							nargs=2
+							nargs=2,
 							dest="merge",
 							default=None,
 							help="Merge the generique .report and the other systems together without add a systems generique that is in the OTHER_REPORT. Write the new .report in GENERIQUE_REPORT directory")
