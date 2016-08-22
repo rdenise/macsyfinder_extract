@@ -2,6 +2,7 @@
 
 from set_params import *
 from fasta_creation import *
+from merge_generique_all import *
 import argparse
 from textwrap import dedent
 
@@ -82,8 +83,31 @@ extraction_option.add_argument("-conc",'--concatenate',
 							default=None,
 							help="Allow to concatenate detected sequences and verified sequences")
 
+merge_option = parser.add_argument_group(title = "Merge report options")
+extraction_option.add_argument("-m",'--merge',
+							metavar=("<OTHER_REPORT>", "<GENERIQUE_REPORT>"),
+							nargs=2
+							dest="merge",
+							default=None,
+							help="Merge the generique .report and the other systems together without add a systems generique that is in the OTHER_REPORT. Write the new .report in GENERIQUE_REPORT directory")
 
 args = parser.parse_args()
+
+if args.merge :
+	fileAll = os.path.abspath(args.merge[0])
+	fileGenerique = os.path.abspath(args.merge[1])
+
+	fileWrite = os.path.join(os.path.dirname(fileGenerique),"merge_macsyfinder.report")
+
+	write_merge_file(fileGenerique, fileAll, fileWrite)
+
+	print "\n#################"
+	print "# File merged"
+	print "#################\n"
+
+	sys.exit(0)
+
+
 
 if not args.prefix :
 	PREFIX = os.path.join(os.path.abspath(args.reportFile),"extraction_%s" %(time.strftime("%d_%m_%y")))
