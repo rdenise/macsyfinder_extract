@@ -156,18 +156,24 @@ rename_name_gene(list_file_detected, PATH_FASTA_RENAME)
 PATH_FASTA_DETECTED = PATH_FASTA_RENAME
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='')
 
-# Troisième liste de fichiers détectés après cutoff
-if args.cutoff :
-	PATH_FASTA_DETECTED_CUTOFF = os.path.join(PREFIX, "fasta_detected", "cut_off")
-	cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, file_cutoff=args.cutoff, user_folder=PREFIX)
-	PATH_FASTA_DETECTED = PATH_FASTA_DETECTED_CUTOFF
-	list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='')
-
 if args.concat :
-	PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated")
+	if args.cutoff :
+		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated", "raw")
+	else :
+		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated")
+
 	create_folder(PATH_FASTA_CONCATENATED)
 
 	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED)
+
+# Deuxieme liste de fichiers concaténés ou detectés après cutoff
+if args.cutoff :
+	if args.concat :
+		PATH_FASTA_CONCATENATED_CUTOFF = os.path.join(PREFIX, "fasta_concatenated", "cut_off")
+		cut_seq_fasta_file(list_file_detected, PATH_FASTA_CONCATENATED_CUTOFF, INFO, file_cutoff=args.cutoff)
+	else :
+		PATH_FASTA_DETECTED_CUTOFF = os.path.join(PREFIX, "fasta_detected", "cut_off")
+		cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, INFO, file_cutoff=args.cutoff)
 
 print "\n#################"
 print "# End"
