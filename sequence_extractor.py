@@ -3,7 +3,7 @@ import argparse
 from textwrap import dedent
 import sys, os
 
-sys.path.insert(0, os.path.abspath('library'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'library'))
 
 from set_params import *
 from fasta_creation import *

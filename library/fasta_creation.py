@@ -369,7 +369,7 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_CUTOFF, INFO_folder, file_cutoff=
 
 	dict_remove = {}
 
-	print "\n------------------------------------------
+	print "\n------------------------------------------"
 	print "| First read : Creation of the dictionnary"
 	print "------------------------------------------\n"
 
