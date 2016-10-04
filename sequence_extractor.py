@@ -139,7 +139,7 @@ if args.veriFile or args.veriData :
 	else :
 		PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified")
 		create_folder(PATH_FASTA_VERIFIED)
-		create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep=''), PROTEIN_FUNCTION)
+		create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep=''), PROTEIN_FUNCTION, args.veriFile, args.veriData)
 		rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep=''))
 
 

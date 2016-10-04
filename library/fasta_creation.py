@@ -234,7 +234,7 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 ##########################################################################################
 ##########################################################################################
 
-def create_verified_fasta(listOfFile, PROTEIN_FUNCTION):
+def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 
 	"""
 	Function used to extract the verified sequences for ATPase, prepilin peptidase, pilin (major and minor), IM platform
@@ -243,10 +243,12 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION):
 	:type: list of string
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
 	:type: dict
+	:data_fasta: Fasta file with the verified sequence of the systems
+	:type: string
+	:info_dat:File with the information about the verified systems with this information : #SeqID Gene System SystID
+	:type: string
 	:return: Nothing
 	"""
-
-	PATH_TO_EXTRACT_SYSTEMS="/Users/rdenise/Documents/de_sophie_a_remi/pour_remi/experiment_validated_systems/"
 
 	print "\n#################"
 	print "# Verified Fasta"
@@ -254,11 +256,11 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION):
 
 	list_handle = [open(my_file, 'w') for my_file in listOfFile]
 
-	info_extract = np.loadtxt(os.path.join(PATH_TO_EXTRACT_SYSTEMS,"all_seq_to_extract_annot.dat"), dtype="string")
+	info_extract = np.loadtxt(info_dat, dtype="string", delimiter="\t")
 
 	progression=1
 
-	seqiter = SeqIO.parse(os.path.join(PATH_TO_EXTRACT_SYSTEMS, "all_genes_all_systems.fasta"), "fasta")
+	seqiter = SeqIO.parse(data_fasta, "fasta")
 
 	for seq in seqiter :
 		if seq.id in info_extract[:,0] :
