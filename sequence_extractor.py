@@ -113,7 +113,7 @@ if args.merge :
 
 
 if not args.prefix :
-	PREFIX = os.path.join(os.path.abspath(args.reportFile),"extraction_%s" %(time.strftime("%d_%m_%y")))
+	PREFIX = os.path.join(os.path.abspath(args.reportFile),"extraction_{}".format(time.strftime("%d_%m_%y")))
 else :
 	PREFIX = args.prefix
 
