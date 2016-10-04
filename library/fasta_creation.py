@@ -324,19 +324,20 @@ def write_remove_cutoff(dict_remove, INFO_folder):
 	tmp = os.path.join(INFO_folder, "tmp.md")
 
 	with open(tmp, "w") as w_file :
-		w_file.write("# Systems remove by cutoff\n")
+		w_file.write("# Systems removed by cutoff\n")
 		for remove_system in dict_remove :
+			w_file.write("___\n")
 			if "_V_" in dict_remove[remove_system][0] :
-				w_file.write("## *System {} :::: remove because {} is to long*\n".format(remove_system, dict_remove[remove_system][0]))
+				w_file.write("#### *System {} :::: remove because {} is to long*\n".format(remove_system, dict_remove[remove_system][0]))
 			else :
-				w_file.write("## System {} :::: remove because {} is to long\n".format(remove_system, dict_remove[remove_system][0]))
+				w_file.write("#### System {} :::: remove because {} is to long\n".format(remove_system, dict_remove[remove_system][0]))
+			w_file.write("___\n")
 			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
-			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
-			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
+
 	with open(tmp, "r") as r_file:
 		with open(info_cutoff_file, "w") as w_file:
 			for line in r_file:
-				w_file.write(line.rstrip()+"  \n")
+				w_file.write(line.rstrip().replace(">", "\>")+"  \n")
 	os.remove(tmp)
 
 	print("Done!")
@@ -473,16 +474,16 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 	tmp = os.path.join(INFO_folder, "tmp.md")
 
 	with open(tmp, "w") as w_file :
+		w_file.write("# Systems remove in concatenation\n")
 		for remove_system in dict_remove :
-			w_file.write("# Systems remove in concatenation\n")
-			w_file.write("## System {} :::: {} identical\n".format(remove_system, dict_remove[remove_system][0]))
+			w_file.write("___\n")
+			w_file.write("#### System {} :::: {} identical\n".format(remove_system, dict_remove[remove_system][0]))
+			w_file.write("___\n")
 			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
-			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
-			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
 	with open(tmp, "r") as r_file:
 		with open(info_concatenate_file, "w") as w_file:
 			for line in r_file:
-				w_file.write(line.rstrip()+"  \n")
+				w_file.write(line.rstrip().replace(">", "\>")+"  \n")
 	os.remove(tmp)
 
 	print("Done!")
