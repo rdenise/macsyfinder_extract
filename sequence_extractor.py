@@ -68,6 +68,7 @@ extraction_option = parser.add_argument_group(title = "Extraction options")
 extraction_option.add_argument("-cut",'--cutoff',
 							metavar="<CUTOFF_FILE>",
 							nargs='?',
+							const=True,
 							dest="cutoff",
 							default=None,
 							help="Option to remove sequences that are way to much longer or shorter beside of the other. (If there is no file, it will calculate the cutoff and generate a file)")
@@ -129,7 +130,7 @@ REPORT = args.reportFile
 PROTEIN_FUNCTION = read_protein_function(args.defFile)
 
 #List of all the function name with .fasta add at the end
-all_function = [function+".fasta" for function in PROTEIN_FUNCTION.keys()]
+all_function = np.unique([function+".fasta" for function in PROTEIN_FUNCTION.values()]).tolist()
 list_file = robjects.StrVector(all_function)
 
 #Si j'ai l'option verifié mise en place je demande les deux options
@@ -137,24 +138,26 @@ if args.veriFile or args.veriData :
 	if not (args.veriFile and args.veriData):
 		parser.error("you MUST provided a verified fasta file and a annotation data file. If you want verified fasta")
 	else :
-		PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified")
+		PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified", "raw")
 		create_folder(PATH_FASTA_VERIFIED)
-		create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep=''), PROTEIN_FUNCTION, args.veriFile, args.veriData)
-		rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep=''))
+		create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, args.veriFile, args.veriData)
+		PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_verified", "rename")
+		rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME)
+		PATH_FASTA_VERIFIED = PATH_FASTA_RENAME
 
 
 # Première liste de fichiers détectés
-PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
-create_folder(PATH_FASTA_DETECTED)
-list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='')
+#PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
+#create_folder(PATH_FASTA_DETECTED)
+#list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
-find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+#find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
 
 # Deuxième liste de fichiers détectés après que tous les nom soit renomé
 PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_detected", "rename")
-rename_name_gene(list_file_detected, PATH_FASTA_RENAME)
+#rename_name_gene(list_file_detected, PATH_FASTA_RENAME)
 PATH_FASTA_DETECTED = PATH_FASTA_RENAME
-list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='')
+list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
 if args.concat :
 	if args.cutoff :

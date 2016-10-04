@@ -125,6 +125,7 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 			else :
 				sys.exit("ERROR:: Function not known : "+keys_genes[index])
 
+	print
 	print "Done!"
 
 	#Close all file
@@ -228,6 +229,7 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 
 		handle.close()
 
+	print
 	print "Done!"
 	return
 
@@ -265,7 +267,6 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 	for seq in seqiter :
 		if seq.id in info_extract[:,0] :
 
-			print "{:.2f}% : {}/{} sequences wanted found\r".format(1.11, 1, 1)
 			sys.stdout.write("{:.2f}% : {}/{} sequences wanted found\r".format(progression/float(info_extract.shape[0])*100, progression,info_extract.shape[0]))
 			sys.stdout.flush()
 			progression += 1
@@ -295,6 +296,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 
 					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 
+	print
 	print "Done!"
 	return
 
@@ -315,20 +317,20 @@ def write_remove_cutoff(dict_remove, INFO_folder):
 	"""
 
 	print "\n#################"
-	print "# Info concatetaned file"
+	print "# Write info cutoff file"
 	print "#################\n"
 
 	info_cutoff_file = os.path.join(INFO_folder, "remove_cutoff.md")
 	tmp = os.path.join(INFO_folder, "tmp.md")
 
 	with open(tmp, "w") as w_file :
+		w_file.write("# Systems remove by cutoff\n")
 		for remove_system in dict_remove :
-			w_file.write("# Systems remove by cutoff\n")
 			if "_V_" in dict_remove[remove_system][0] :
-				w_file.write("## _System {} :::: remove because {} is to long_\n".format(remove_system, dict_remove[remove_system][0]))
+				w_file.write("## *System {} :::: remove because {} is to long*\n".format(remove_system, dict_remove[remove_system][0]))
 			else :
 				w_file.write("## System {} :::: remove because {} is to long\n".format(remove_system, dict_remove[remove_system][0]))
-			SeqIO.write(dict_remove[remove_system][1])
+			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
 			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
 			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
 	with open(tmp, "r") as r_file:
@@ -336,6 +338,9 @@ def write_remove_cutoff(dict_remove, INFO_folder):
 			for line in r_file:
 				w_file.write(line.rstrip()+"  \n")
 	os.remove(tmp)
+
+	print("Done!")
+
 	return
 
 
@@ -354,15 +359,16 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_CUTOFF, INFO_folder, file_cutoff=
 	:type: string
     :param INFO_folder: the absolute path to the info folder
     :type: string
-	:param file_cutoff: Name of the tabular file with the information for the cutoff if exist
+	:param file_cutoff: Name of the tabular file with the information for the cutoff if exist or True if not
 	:type: string
 	:return: Nothing
 	"""
 
-	if file_cutoff is not None :
-		DICT_CUTOFF=set_dict_cutoff(cutoff_file)
-	else :
+	if file_cutoff == True :
 		DICT_CUTOFF=set_dict_cutoff_init(listOfFasta, INFO_folder)
+	else :
+		DICT_CUTOFF=set_dict_cutoff(cutoff_file)
+
 
 	print "\n#################"
 	print "# Cutoff file"
@@ -381,28 +387,29 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_CUTOFF, INFO_folder, file_cutoff=
 		if current_file in DICT_CUTOFF:
 
 			seqiter = SeqIO.parse(my_file, 'fasta')
-			number_seq = len(seqiter)
+			number_seq = len(list(seqiter))
 			progression = 1
 
 			seqiter = SeqIO.parse(my_file, 'fasta')
 
 			for seq in seqiter :
-				sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences read\r".format(fasta_file, progression/float(number_seq)*100, progression, number_seq))
+				sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences read\r".format(current_file, progression/float(number_seq)*100, progression, number_seq))
 				sys.stdout.flush()
 				progression += 1
 
 				id_seq=seq.id.split("_")
 
 				if "_D_" in seq.id :
-					id_seq="_".join(id_seq[id_seq.index("D"):])
+					id_seq="_".join(id_seq[:id_seq.index("D")])
 				else :
-					id_seq="_".join(id_seq[id_seq_verif.index("V"):])
+					id_seq="_".join(id_seq[:id_seq_verif.index("V")])
 
 				if id_seq in dict_remove :
 					continue
-				elif len(seq) > DICT_CUTOFF[current_file][1] and  len(seq) < DICT_CUTOFF[current_file][0] :
+				elif len(seq) > DICT_CUTOFF[current_file][1] or  len(seq) < DICT_CUTOFF[current_file][0] :
 					dict_remove[id_seq]=[seq.id,[]]
-	print "Done!"
+		print
+		print("File : {} -> Done!".format(current_file))
 
 	print "\n-----------------------------"
 	print "| Second read : Writing files"
@@ -413,23 +420,29 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_CUTOFF, INFO_folder, file_cutoff=
 		with open(os.path.join(PATH_FASTA_CUTOFF, current_file), "w") as writing_file :
 
 			seqiter = SeqIO.parse(my_file, 'fasta')
-			number_seq = len(seqiter)
+			number_seq = len(list(seqiter))
 			progression = 1
 
 			seqiter = SeqIO.parse(my_file, 'fasta')
 			for seq in seqiter :
-				sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences read\r".format(fasta_file, progression/float(number_seq)*100, progression, number_seq))
+				sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences read\r".format(current_file, progression/float(number_seq)*100, progression, number_seq))
 				sys.stdout.flush()
 				progression += 1
 
 				id_seq=seq.id.split("_")
+
+				if "_D_" in seq.id :
+					id_seq="_".join(id_seq[:id_seq.index("D")])
+				else :
+					id_seq="_".join(id_seq[:id_seq_verif.index("V")])
 
 				if id_seq in dict_remove :
 					dict_remove[id_seq][1].append(seq)
 				else :
 					SeqIO.write(seq, writing_file,"fasta")
 
-	print "Done!"
+		print
+		print("File : {} -> Done!".format(current_file))
 
 	write_remove_cutoff(dict_remove, INFO_folder)
 
@@ -453,7 +466,7 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 	"""
 
 	print "\n#################"
-	print "# Info concatetaned file"
+	print "# Write info concatetaned file"
 	print "#################\n"
 
 	info_concatenate_file = os.path.join(INFO_folder, "remove_concatenate.md")
@@ -463,7 +476,7 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 		for remove_system in dict_remove :
 			w_file.write("# Systems remove in concatenation\n")
 			w_file.write("## System {} :::: {} identical\n".format(remove_system, dict_remove[remove_system][0]))
-			SeqIO.write(dict_remove[remove_system][1])
+			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
 			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
 			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
 	with open(tmp, "r") as r_file:
@@ -471,6 +484,8 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 			for line in r_file:
 				w_file.write(line.rstrip()+"  \n")
 	os.remove(tmp)
+
+	print("Done!")
 
 	return
 
@@ -503,31 +518,31 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	print "# Concatetaned file"
 	print "#################\n"
 
-	for fasta_file in fasta_name :
-		verified_fasta=os.path.join(fasta_file, PATH_FASTA_VERIFIED)
-		detected_fasta=os.path.join(fasta_file, PATH_FASTA_DETECTED)
-		concatenated_fasta=os.path.join(fasta_file, PATH_FASTA_CONCATENATED)
+	# NOTE Dictionaire avec en clef l'id espèce/système et en value une liste
+	# NOTE ["l'id espèce/système du verifié qui correspond", [liste des sequences ATPase, IM ...]]
+	dict_remove = {}
 
-		os.system('cat "{}" > "{}"').format(verified_fasta, concatenated_fasta)
+	for fasta_file in fasta_name :
+		verified_fasta=os.path.join(PATH_FASTA_VERIFIED, fasta_file)
+		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
+		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
+
+		os.system('cat "{}" > "{}"'.format(verified_fasta, concatenated_fasta))
 
 		list_seq_verified = list(SeqIO.parse(verified_fasta, "fasta"))
 		list_id_verified = [seq.id for seq in list_seq_verified]
 		list_seq_verified = [seq.seq for seq in list_seq_verified]
 
 		seq_parser = SeqIO.parse(detected_fasta, "fasta")
-		number_seq = len(seq_parser)
+		number_seq = len(list(seq_parser))
 		progression = 1
-
-		# NOTE Dictionaire avec en clef l'id espèce/système et en value une liste
-		# NOTE ["l'id espèce/système du verifié qui correspond", [liste des sequences ATPase, IM ...]]
-		dict_remove = {}
 
 		seq_parser = SeqIO.parse(detected_fasta, "fasta")
 
 		# IDEA Il faut tester au moins une fois pour voir si lors de la concatenation, je ne me retrouve pas avec des systems ou je n'ai pas tous enlevé. Exemple l'ATPase de X n'est pas la même que celle de Y mais l'IMplatform l'ai si c'est le cas X est a enlevé aussi pour son ATPase
 		# IDEA Si idea précédente vrai alors il faut faire des fichiers temporaires des sequences que l'on garde et concatener par "cat" à la fin le fichier temporaire et son homonyme en verifié.
 
-		with open(concatenated_fasta, "w") as w_file :
+		with open(concatenated_fasta, "a") as w_file :
 			for seq in seq_parser :
 
 				sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences detected read\r".format(fasta_file, progression/float(number_seq)*100, progression,number_seq))
@@ -535,7 +550,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 				progression += 1
 
 				id_seq=seq.id.split("_")
-				id_seq="_".join(id_seq[id_seq.index("D"):])
+				id_seq="_".join(id_seq[:id_seq.index("D")])
 
 				if id_seq in dict_remove :
 					dict_remove[id_seq][1].append(seq)
@@ -544,13 +559,14 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 					index=list_seq_verified.index(seq.seq)
 
 					id_seq_verif = list_id_verified[index].split("_")
-					id_seq_verif = "_".join(id_seq[id_seq_verif.index("V"):])
+					id_seq_verif = "_".join(id_seq_verif[:id_seq_verif.index("V")])
 
 					dict_remove[id_seq]=[id_seq_verif,[seq]]
 
 				else :
-					SeqIO.write(seq, "fasta")
-		print("File : {} -> Done!" % fasta_file)
+					SeqIO.write(seq, w_file, "fasta")
+		print
+		print("File : {} -> Done!".format(fasta_file))
 
 	# NOTE Dict remove complete and all concatenate write
 	write_remove_concatenate(dict_remove, INFO_folder)

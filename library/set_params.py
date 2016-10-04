@@ -11,7 +11,7 @@
 import numpy as np
 from Bio import SeqIO
 import glob
-import os
+import os, sys
 
 ##########################################################################################
 ##########################################################################################
@@ -78,7 +78,7 @@ def set_cutoff(fasta_file):
     numpy_len=np.array(list_len)
 
     upper=int(np.mean(numpy_len)+2*np.std(numpy_len))
-    lower=int(np.mean(numpy_len)+2*np.std(numpy_len))
+    lower=int(np.mean(numpy_len)-2*np.std(numpy_len))
 
     if lower < 0 :
         lower=0
@@ -105,13 +105,13 @@ def set_dict_cutoff_init(listOfFasta, INFO_folder):
     fid=os.path.join(INFO_folder,"proteins.cutoff")
     cutoff_dict={}
     array_for_file=[]
-    for Fastafile in listOfFasta :
-    	current_file = Fastafile.split("/")[-1]
-        cutoff_dict[current_file]=set_cutoff(fasta_file)
+    for fastafile in listOfFasta :
+    	current_file = os.path.basename(fastafile)
+        cutoff_dict[current_file]=set_cutoff(fastafile)
         array_for_file.append([current_file]+cutoff_dict[current_file])
 
-    header=["file", "lower_cutoff", "upper_cutoff"]
-    np.savetxt(fid, self.classes ,delimiter="\t", fmt="%.2f", header=header)
+    header="\t".join(["file", "lower_cutoff", "upper_cutoff"])
+    np.savetxt(fid, np.array(array_for_file) ,delimiter="\t", fmt="%s", header=header)
     return cutoff_dict
 
 ##########################################################################################
