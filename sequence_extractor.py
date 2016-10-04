@@ -82,8 +82,8 @@ extraction_option.add_argument("-veriData",'--verifiedData',
 							default=None,
 							help="File with the information about the verified systems with this information : #SeqID	Gene	System	SystID	Family	Note")
 extraction_option.add_argument("-conc",'--concatenate',
+							action='store_true',
 							dest="concat",
-							default=None,
 							help="Allow to concatenate detected sequences and verified sequences")
 
 merge_option = parser.add_argument_group(title = "Merge report options")
