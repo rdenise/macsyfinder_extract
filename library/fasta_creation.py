@@ -331,8 +331,8 @@ def write_remove_cutoff(dict_remove, INFO_folder):
 			else :
 				w_file.write("## System {} :::: remove because {} is to long\n".format(remove_system, dict_remove[remove_system][0]))
 			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
-			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
-			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
+			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
+			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
 	with open(tmp, "r") as r_file:
 		with open(info_cutoff_file, "w") as w_file:
 			for line in r_file:
@@ -477,8 +477,8 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 			w_file.write("# Systems remove in concatenation\n")
 			w_file.write("## System {} :::: {} identical\n".format(remove_system, dict_remove[remove_system][0]))
 			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
-			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
-			w_file.write("# –––––––––––––––––––––––––––––––––––––––––––––––\n")
+			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
+			w_file.write("# ––––––––––––––––––––––––––––––––––––––––––––––\n")
 	with open(tmp, "r") as r_file:
 		with open(info_concatenate_file, "w") as w_file:
 			for line in r_file:
