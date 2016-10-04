@@ -70,7 +70,7 @@ extraction_option.add_argument("-cut",'--cutoff',
 							nargs='?',
 							dest="cutoff",
 							default=None,
-							help="Option to remove sequences that are way to much longer or shorter beside of the other. (If a file isn't gave it will calculate the cutoff and generate a file)")
+							help="Option to remove sequences that are way to much longer or shorter beside of the other. (If there is no file, it will calculate the cutoff and generate a file)")
 extraction_option.add_argument("-veriFile",'--verifiedFile',
 							metavar="<VERIFIED_FASTA_FILE>",
 							dest="veriFile",
