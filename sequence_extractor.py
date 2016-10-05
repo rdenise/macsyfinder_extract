@@ -147,15 +147,15 @@ if args.veriFile or args.veriData :
 
 
 # Première liste de fichiers détectés
-#PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
-#create_folder(PATH_FASTA_DETECTED)
-#list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
+PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
+create_folder(PATH_FASTA_DETECTED)
+list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
-#find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
 
 # Deuxième liste de fichiers détectés après que tous les nom soit renomé
 PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_detected", "rename")
-#rename_name_gene(list_file_detected, PATH_FASTA_RENAME)
+rename_name_gene(list_file_detected, PATH_FASTA_RENAME)
 PATH_FASTA_DETECTED = PATH_FASTA_RENAME
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
