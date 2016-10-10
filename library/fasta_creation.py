@@ -328,9 +328,11 @@ def write_remove_cutoff(dict_remove, INFO_folder):
 		for remove_system in dict_remove :
 			w_file.write("___\n")
 			if "_V_" in dict_remove[remove_system][0] :
-				w_file.write("#### *System {} :::: remove because {} is to long*\n".format(remove_system, dict_remove[remove_system][0]))
+				w_file.write("#### *System {} :::: Removed*\n".format(remove_system))
+				w_file.write("##### *Because {} is too {}*\n".format(dict_remove[remove_system][0],dict_remove[remove_system][2]))
 			else :
-				w_file.write("#### System {} :::: remove because {} is to long\n".format(remove_system, dict_remove[remove_system][0]))
+				w_file.write("#### System {} :::: Removed\n".format(remove_system))
+				w_file.write("##### Because {} is too {}\n".format(dict_remove[remove_system][0],dict_remove[remove_system][2]))
 			w_file.write("___\n")
 			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
 
@@ -401,14 +403,17 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_CUTOFF, INFO_folder, file_cutoff=
 				id_seq=seq.id.split("_")
 
 				if "_D_" in seq.id :
-					id_seq="_".join(id_seq[:id_seq.index("D")])
+					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
 				else :
-					id_seq="_".join(id_seq[:id_seq_verif.index("V")])
+					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("V")]))
 
 				if id_seq in dict_remove :
 					continue
 				elif len(seq) > DICT_CUTOFF[current_file][1] or  len(seq) < DICT_CUTOFF[current_file][0] :
-					dict_remove[id_seq]=[seq.id,[]]
+					if len(seq) > DICT_CUTOFF[current_file][1] :
+						dict_remove[id_seq]=[seq.id,[], "long"]
+					else :
+						dict_remove[id_seq]=[seq.id,[], "short"]
 		print
 		print("File : {} -> Done!".format(current_file))
 
@@ -433,9 +438,9 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_CUTOFF, INFO_folder, file_cutoff=
 				id_seq=seq.id.split("_")
 
 				if "_D_" in seq.id :
-					id_seq="_".join(id_seq[:id_seq.index("D")])
+					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
 				else :
-					id_seq="_".join(id_seq[:id_seq_verif.index("V")])
+					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("V")]))
 
 				if id_seq in dict_remove :
 					dict_remove[id_seq][1].append(seq)
@@ -478,6 +483,7 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 		for remove_system in dict_remove :
 			w_file.write("___\n")
 			w_file.write("#### System {} :::: {} identical\n".format(remove_system, dict_remove[remove_system][0]))
+			w_file.write("##### Because of {}\n".format(dict_remove[remove_system][2]))
 			w_file.write("___\n")
 			SeqIO.write(dict_remove[remove_system][1], w_file, "fasta")
 	with open(tmp, "r") as r_file:
@@ -523,12 +529,14 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	# NOTE ["l'id espèce/système du verifié qui correspond", [liste des sequences ATPase, IM ...]]
 	dict_remove = {}
 
+	print "\n------------------------------------------"
+	print "| First read : Creation of the dictionnary"
+	print "------------------------------------------\n"
+
 	for fasta_file in fasta_name :
 		verified_fasta=os.path.join(PATH_FASTA_VERIFIED, fasta_file)
 		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
 		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
-
-		os.system('cat "{}" > "{}"'.format(verified_fasta, concatenated_fasta))
 
 		list_seq_verified = list(SeqIO.parse(verified_fasta, "fasta"))
 		list_id_verified = [seq.id for seq in list_seq_verified]
@@ -543,6 +551,50 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 		# IDEA Il faut tester au moins une fois pour voir si lors de la concatenation, je ne me retrouve pas avec des systems ou je n'ai pas tous enlevé. Exemple l'ATPase de X n'est pas la même que celle de Y mais l'IMplatform l'ai si c'est le cas X est a enlevé aussi pour son ATPase
 		# IDEA Si idea précédente vrai alors il faut faire des fichiers temporaires des sequences que l'on garde et concatener par "cat" à la fin le fichier temporaire et son homonyme en verifié.
 
+		# NOTE Il y avait un problème : le nom/id de l'epèce + système ne doit pas contenir le _NumX_ car ce Num fait référence au nombre de duplicat de la protéine (exemple deux ATPase gspE)
+		# NOTE Quelques systèmes on des sequences qui sont similaire pour toutes les protéines sauf une exemple ESCO3 et NC_011993 qui sont identique pour tous sauf ATPase (98% seulement)
+
+		for seq in seq_parser :
+
+			sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences detected read\r".format(fasta_file, progression/float(number_seq)*100, progression,number_seq))
+			sys.stdout.flush()
+			progression += 1
+
+			id_seq=seq.id.split("_")
+			id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
+
+			if id_seq in dict_remove :
+				continue
+
+			elif seq.seq in list_seq_verified :
+				index=list_seq_verified.index(seq.seq)
+
+				id_seq_verif = list_id_verified[index].split("_")
+				id_seq_verif = re.sub("Num[0-9]_", "", "_".join(id_seq_verif[:id_seq_verif.index("V")]))
+
+				# NOTE dans le dictionnaire je met le système vérifié en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisème
+				dict_remove[id_seq]=[id_seq_verif,[], seq.id]
+
+		print
+		print("File : {} -> Done!".format(fasta_file))
+
+	print "\n-----------------------------"
+	print "| Second read : Writing files"
+	print "-----------------------------\n"
+
+	for fasta_file in fasta_name :
+		verified_fasta=os.path.join(PATH_FASTA_VERIFIED, fasta_file)
+		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
+		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
+
+		os.system('cat "{}" > "{}"'.format(verified_fasta, concatenated_fasta))
+
+		seq_parser = SeqIO.parse(detected_fasta, "fasta")
+		number_seq = len(list(seq_parser))
+		progression = 1
+
+		seq_parser = SeqIO.parse(detected_fasta, "fasta")
+
 		with open(concatenated_fasta, "a") as w_file :
 			for seq in seq_parser :
 
@@ -551,18 +603,10 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 				progression += 1
 
 				id_seq=seq.id.split("_")
-				id_seq="_".join(id_seq[:id_seq.index("D")])
+				id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
 
 				if id_seq in dict_remove :
 					dict_remove[id_seq][1].append(seq)
-
-				elif seq.seq in list_seq_verified :
-					index=list_seq_verified.index(seq.seq)
-
-					id_seq_verif = list_id_verified[index].split("_")
-					id_seq_verif = "_".join(id_seq_verif[:id_seq_verif.index("V")])
-
-					dict_remove[id_seq]=[id_seq_verif,[seq]]
 
 				else :
 					SeqIO.write(seq, w_file, "fasta")

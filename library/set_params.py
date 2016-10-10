@@ -55,7 +55,8 @@ def read_protein_function(file_function):
     with open(file_function,"r") as r_file:
         functions=[line.split() for line in r_file]
     for function in functions:
-        dict_function.update({protein:function[0] for protein in function[1:]})
+        if function[0][0] != "#" :
+            dict_function.update({protein:function[0] for protein in function[1:]})
     return dict_function
 
 ##########################################################################################

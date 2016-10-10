@@ -166,14 +166,14 @@ if args.concat :
 		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated")
 
 	create_folder(PATH_FASTA_CONCATENATED)
-
 	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED)
+	list_file_concatenated = robjects.r['paste'](PATH_FASTA_CONCATENATED, list_file, sep='/')
 
 # Deuxieme liste de fichiers concaténés ou detectés après cutoff
 if args.cutoff :
 	if args.concat :
 		PATH_FASTA_CONCATENATED_CUTOFF = os.path.join(PREFIX, "fasta_concatenated", "cut_off")
-		cut_seq_fasta_file(list_file_detected, PATH_FASTA_CONCATENATED_CUTOFF, INFO, file_cutoff=args.cutoff)
+		cut_seq_fasta_file(list_file_concatenated, PATH_FASTA_CONCATENATED_CUTOFF, INFO, file_cutoff=args.cutoff)
 	else :
 		PATH_FASTA_DETECTED_CUTOFF = os.path.join(PREFIX, "fasta_detected", "cut_off")
 		cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, INFO, file_cutoff=args.cutoff)
