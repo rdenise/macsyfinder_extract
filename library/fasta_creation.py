@@ -108,7 +108,7 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 	seq_wanted = len(wanted)
 
 	for seq in seqiter :
-	  if seq.id in wanted:
+		if seq.id in wanted:
 			sys.stdout.write("{:.2f}% : {}/{} sequences wanted found\r".format(progression/float(seq_wanted)*100, progression,seq_wanted))
 			sys.stdout.flush()
 			progression += 1
