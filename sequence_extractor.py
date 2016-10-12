@@ -105,9 +105,9 @@ if args.merge :
 
 	write_merge_file(fileGenerique, fileAll, fileWrite)
 
-	print "\n#################"
-	print "# File merged"
-	print "#################\n"
+	print("\n#################")
+	print("# File merged")
+	print("#################\n")
 
 	sys.exit(0)
 
@@ -178,6 +178,6 @@ if args.cutoff :
 		PATH_FASTA_DETECTED_CUTOFF = os.path.join(PREFIX, "fasta_detected", "cut_off")
 		cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, INFO, file_cutoff=args.cutoff)
 
-print "\n#################"
-print "# End"
-print "#################\n"
+print("\n#################")
+print("# End")
+print("#################\n")

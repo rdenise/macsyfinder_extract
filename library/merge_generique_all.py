@@ -49,10 +49,10 @@ def write_merge_file(generique_report_file, all_report_file, write_file) :
 						w_file.write(line)
 
 					else :
-						print "**********"
-						print "ERROR::Not normal"
-						print line
-						print "\t".join(report_generique[index,:].tolist())
+						print("**********")
+						print("ERROR::Not normal")
+						print(line)
+						print("\t".join(report_generique[index,:].tolist()))
 
 					report_generique = np.delete(report_generique, index, axis=0)
 
