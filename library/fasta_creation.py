@@ -68,7 +68,8 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 
 	print("There are {} proteins remove during this operation because they are not in the dictionnary".format(number_remove_protein))
 
-	# NOTE NC_XXXXXX[_numero de systeme si deux systemes trouvés]_nomSysteme_D_nomProteine
+	# NOTE NC_XXXXXX[_numero de systeme si deux systemes trouvés]_nomSysteme_D_nomProteine (for 2015 gembase format)
+	# NOTE XXXX[_numero de systeme si deux systemes trouvés]_nomSysteme_D_nomProteine (for 2013 gembase format)
 	new_name = [report_table[i][1]+'_'+report_table[i][6]+'_D_'+"_".join(report_table[i][4].split('_')[1:]) for i in range(report_table.shape[0])]
 
 	return report_table[:,0].tolist(), new_name, report_table[:,4].tolist()
