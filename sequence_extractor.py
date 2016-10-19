@@ -120,7 +120,7 @@ else :
 
 create_folder(PREFIX)
 
-#Creation of an information folder for each sequence remove or file generate (as cutoff, ...)
+# XXX Creation of an information folder for each sequence remove or file generate (as cutoff, ...)
 INFO=os.path.join(PREFIX,"info_folder")
 create_folder(INFO)
 
@@ -129,15 +129,19 @@ REPORT = args.reportFile
 
 PROTEIN_FUNCTION = read_protein_function(args.defFile)
 
-#List of all the function name with .fasta add at the end
+# XXX List of all the function name with .fasta add at the end
 all_function = np.unique([function+".fasta" for function in PROTEIN_FUNCTION.values()]).tolist()
 list_file = robjects.StrVector(all_function)
 
-#Si j'ai l'option verifié mise en place je demande les deux options
+# XXX Je crée le fichier ou je met mes systemes de mon analyse
+info_file = open(os.path.join(INFO,"systems_found.names"), "w")
+
+# XXX Si j'ai l'option verifié mise en place je demande les deux options
 if args.veriFile or args.veriData :
 	if not (args.veriFile and args.veriData):
 		parser.error("you MUST provided a verified fasta file and a annotation data file. If you want verified fasta")
 	else :
+		info_file.write("# Verified systems")
 		PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified", "raw")
 		create_folder(PATH_FASTA_VERIFIED)
 		create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, args.veriFile, args.veriData)
@@ -146,20 +150,23 @@ if args.veriFile or args.veriData :
 		PATH_FASTA_VERIFIED = PATH_FASTA_RENAME
 
 
-# Première liste de fichiers détectés
+# XXX Première liste de fichiers détectés
 PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
 create_folder(PATH_FASTA_DETECTED)
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
 find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
 
-# Deuxième liste de fichiers détectés après que tous les nom soit renomé
+# XXX Deuxième liste de fichiers détectés après que tous les nom soit renomé
 PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_detected", "rename")
 rename_name_gene(list_file_detected, PATH_FASTA_RENAME)
 PATH_FASTA_DETECTED = PATH_FASTA_RENAME
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
 if args.concat :
+    # NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences non identique au verifiées.
+    create_folder(os.path.join(PATH_FASTA_DETECTED, "selected_concatenation"))
+
 	if args.cutoff :
 		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated", "raw")
 	else :
@@ -169,7 +176,7 @@ if args.concat :
 	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED)
 	list_file_concatenated = robjects.r['paste'](PATH_FASTA_CONCATENATED, list_file, sep='/')
 
-# Deuxieme liste de fichiers concaténés ou detectés après cutoff
+# XXX Deuxieme liste de fichiers concaténés ou detectés après cutoff
 if args.cutoff :
 	if args.concat :
 		PATH_FASTA_CONCATENATED_CUTOFF = os.path.join(PREFIX, "fasta_concatenated", "cut_off")

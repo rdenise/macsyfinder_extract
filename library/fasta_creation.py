@@ -31,23 +31,23 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 	create a fasta with these sequences.
 
 	:param fileReport: the file .report of the MacSyFinder analysis
-	:type: string
+	:type: str
 	:param INFO: absolute path of the info_folder
 	be write
-	:type: string
+	:type: str
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
 	:type: dict
 	:return: the list of the sequence ids of the hit find by MacSyFinder, the
 	list of all the new name for each sequences and the reference systems for
 	each sequence.
-	:rtype: list of string, list of string, list of string
+	:rtype: list of str, list of str, list of str
 	"""
 
 	print("\n#################")
 	print("# Protein extraction")
 	print("#################\n")
 
-	report_table = np.loadtxt(fileReport, dtype='string')
+	report_table = np.genfromtxt(fileReport, dtype=str)
 	number_prot = report_table.shape[0]
 	index_remove = []
 
@@ -84,19 +84,19 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 	This function is used to create the fasta with MacSyFinder hits found
 
 	:param fileFasta: name of the fasta database used in the MacSyfinder analysis
-	:type: string
+	:type: str
 	:param fileReport: name of the file .report of the MacSyFinder analysis
-	:type: string
+	:type: str
 	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
-	:type: list of string
+	:type: list of str
 	:param INFO: absolute path of the info_folder
-	:type: string
+	:type: str
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
 	:type: dict
 	:return: Nothing
 	"""
 
-	list_handle=[open(my_file,"w") for my_file in listOfFile]
+	list_handle = [open(my_file,"w") for my_file in listOfFile]
 
 	wanted, name_genes, keys_genes = extract_protein(fileReport, INFO, PROTEIN_FUNCTION)
 	seqiter = SeqIO.parse(open(fileFasta), 'fasta')
@@ -124,12 +124,12 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 
 				SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 			else :
-				sys.exit("ERROR:: Function not known : "+keys_genes[index])
+				sys.exit("ERROR:: Function not known : {}".format(keys_genes[index]))
 
 	print()
 	print("Done!")
 
-	#Close all file
+	# XXX Close all file
 	for open_file in list_handle:
 		open_file.close()
 
@@ -178,7 +178,7 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 	:type: list
 	:param PATH_FASTA_RENAME: absolute path of the folder where the rename will
 	be write
-	:type: string
+	:type: str
 	:return: Nothing
 	"""
 
@@ -211,22 +211,31 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 		fasta_reading = SeqIO.parse(my_file, "fasta")
 
 		for seq in fasta_reading :
+			seq_id_split = seq.id.split("_")
+
 			if seq.id in dict_count :
 				if dict_count[seq.id] == 0 :
 					dict_count[seq.id] += 1
 				else :
 					dict_count[seq.id] += 1
-					if "NC_" in seq.id :
+					if "_D_" in seq.id :
 						# NOTE New name : NC_XXXXXX[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_D_nomProteine
-						seq.id = "_".join(seq.id.split("_")[:2])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq.id.split("_")[2:])
+						index_system_name = seq_id_split.index("_D_")-1
+						seq.id = "_".join(seq_id_split[:index_system_name])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq_id_split[index_system_name:])
 
-					else :
+					elif "_V_" in seq.id:
 						# NOTE New name : NNNN[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_V_nomProteine
-						seq.id = seq.id.split("_")[0]+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq.id.split("_")[1:])
+						index_system_name = seq_id_split.index("_V_")-1
+						seq.id = "_".join(seq_id_split[:index_system_name])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq_id_split[index_system_name:])
 					seq.name = seq.id
 					seq.description = ""
 
 			SeqIO.write(seq, handle, "fasta")
+			if "_Num" in seq.id :
+				info = "{}\t{}\n".format(seq.id.split("_Num")[0], seq_id_split[index_system_name])
+			else :
+				info = "{}\t{}\n".format("_".join(seq_id_split[:index_system_name]), seq_id_split[index_system_name])
+			info_name.write(seq.id)
 
 		handle.close()
 
@@ -239,17 +248,19 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 
 def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 
+	# NOTE Pas du tous adapté si on a un programme général si des verifiés autre que les miens c'est foutu
+
 	"""
 	Function used to extract the verified sequences for ATPase, prepilin peptidase, pilin (major and minor), IM platform
 
 	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
-	:type: list of string
+	:type: list of str
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
 	:type: dict
 	:data_fasta: Fasta file with the verified sequence of the systems
-	:type: string
+	:type: str
 	:info_dat:File with the information about the verified systems with this information : #SeqID Gene System SystID
-	:type: string
+	:type: str
 	:return: Nothing
 	"""
 
@@ -259,7 +270,8 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 
 	list_handle = [open(my_file, 'w') for my_file in listOfFile]
 
-	info_extract = np.loadtxt(info_dat, dtype="string", delimiter="\t")
+
+	info_extract = np.genfromtxt(info_dat, dtype=str, delimiter="\t")
 
 	progression=1
 
@@ -274,6 +286,8 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 
 			position = info_extract[:,0].tolist().index(seq.id)
 
+			# IDEA pour faire un truc général je pourrais par exemple crée la liste à partir du fichier de definition de protein_function.def
+
 			if info_extract[position][1].split("_")[0] in ['T2SS','T4P', 'Tad']:
 
 				if info_extract[position][1] in PROTEIN_FUNCTION :
@@ -284,8 +298,9 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 					seq.description = ''
 
 					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
-
 			else :
+				# NOTE Permet d'avoir le bon nom si dans la colonne 2 j'ai que gspD par exemple et comme ça je reforme T2SS_gspD
+
 				new_name = info_extract[position][2]+"_"+info_extract[position][1]
 
 				if new_name in PROTEIN_FUNCTION :
@@ -299,6 +314,10 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 
 	print()
 	print("Done!")
+
+	for open_file in list_handle :
+		open_file.close()
+
 	return
 
 ##########################################################################################
@@ -313,7 +332,7 @@ def write_remove_cutoff(dict_remove, INFO_folder):
 	:param dict_remove: dictionnary create by the function cut_seq_fasta_file()
 	:type: dict
 	:param INFO_folder: the absolute path to the info folder
-	:type: string
+	:type: str
 	:return: Nothing
 	"""
 
@@ -358,13 +377,13 @@ def cut_seq_fasta_file(listOfFasta, PATH_FASTA_CUTOFF, INFO_folder, file_cutoff=
 	analysis, are considered as not good.
 
 	:param listOfFasta: List of all the file fasta where we need to remove sequences
-	:type: list of string
+	:type: list of str
 	:param PATH_FASTA_CUTOFF: path to the cutoff folder
-	:type: string
+	:type: str
     :param INFO_folder: the absolute path to the info folder
-    :type: string
+    :type: str
 	:param file_cutoff: Name of the tabular file with the information for the cutoff if exist or True if not
-	:type: string
+	:type: str
 	:return: Nothing
 	"""
 
@@ -468,7 +487,7 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 	:param dict_remove: dictionnary create by the function concatenate_detected_verified()
 	:type: dict
 	:param INFO_folder: the absolute path to the info folder
-	:type: string
+	:type: str
 	:return: Nothing
 	"""
 
@@ -510,15 +529,15 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	the same of this one.
 
 	:param fasta_name: the name of all the fasta file create ([protein_function].fasta)
-	:type: list of string
+	:type: list of str
 	:param PATH_FASTA_DETECTED: absolute path to detected fasta folder
-	:type: string
+	:type: str
 	:param PATH_FASTA_VERIFIED: absolute path to verified fasta folder
-	:type: string
+	:type: str
 	:param INFO_folder: the absolute path to the info folder
-	:type: string
+	:type: str
 	:param PATH_FASTA_CONCATENATED: absolute path to concatenated fasta folder
-	:type: string
+	:type: str
 	:return: Nothing
 	"""
 
@@ -548,9 +567,6 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 		progression = 1
 
 		seq_parser = SeqIO.parse(detected_fasta, "fasta")
-
-		# IDEA Il faut tester au moins une fois pour voir si lors de la concatenation, je ne me retrouve pas avec des systems ou je n'ai pas tous enlevé. Exemple l'ATPase de X n'est pas la même que celle de Y mais l'IMplatform l'ai si c'est le cas X est a enlevé aussi pour son ATPase
-		# IDEA Si idea précédente vrai alors il faut faire des fichiers temporaires des sequences que l'on garde et concatener par "cat" à la fin le fichier temporaire et son homonyme en verifié.
 
 		# NOTE Il y avait un problème : le nom/id de l'epèce + système ne doit pas contenir le _NumX_ car ce Num fait référence au nombre de duplicat de la protéine (exemple deux ATPase gspE)
 		# NOTE Quelques systèmes on des sequences qui sont similaire pour toutes les protéines sauf une exemple ESCO3 et NC_011993 qui sont identique pour tous sauf ATPase (98% seulement)
@@ -586,6 +602,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	for fasta_file in fasta_name :
 		verified_fasta=os.path.join(PATH_FASTA_VERIFIED, fasta_file)
 		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
+		new_detected_fasta=os.path.join(PATH_FASTA_DETECTED, "selected_concatenated", fasta_file)
 		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
 
 		os.system('cat "{}" > "{}"'.format(verified_fasta, concatenated_fasta))
@@ -597,20 +614,22 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 		seq_parser = SeqIO.parse(detected_fasta, "fasta")
 
 		with open(concatenated_fasta, "a") as w_file :
-			for seq in seq_parser :
+			with open(new_detected_fasta, "w") as nd_file :
+				for seq in seq_parser :
 
-				sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences detected read\r".format(fasta_file, progression/float(number_seq)*100, progression,number_seq))
-				sys.stdout.flush()
-				progression += 1
+					sys.stdout.write("File : {} -> {:.2f}% : {}/{} sequences detected read\r".format(fasta_file, progression/float(number_seq)*100, progression,number_seq))
+					sys.stdout.flush()
+					progression += 1
 
-				id_seq=seq.id.split("_")
-				id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
+					id_seq=seq.id.split("_")
+					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
 
-				if id_seq in dict_remove :
-					dict_remove[id_seq][1].append(seq)
+					if id_seq in dict_remove :
+						dict_remove[id_seq][1].append(seq)
 
-				else :
-					SeqIO.write(seq, w_file, "fasta")
+					else :
+						SeqIO.write(seq, w_file, "fasta")
+						SeqIO.write(seq, nd_file, "fasta")
 		print()
 		print("File : {} -> Done!".format(fasta_file))
 
