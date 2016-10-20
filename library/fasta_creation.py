@@ -190,6 +190,9 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 
 	new_listOfFile=[]
 
+	# XXX Dictionnaire qui va recuperer les associations nom d'espèce : nom de systemes pour éviter les doublons
+	dict_info={}
+
 	for my_file in listOfFile :
 		if os.stat(my_file).st_size != 0 :
 			new_listOfFile.append(my_file)
@@ -231,11 +234,23 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 					seq.description = ""
 
 			SeqIO.write(seq, handle, "fasta")
-			if "_Num" in seq.id :
-				info = "{}\t{}\n".format(seq.id.split("_Num")[0], seq_id_split[index_system_name])
+			if re.search("_[0-9]_", seq.id) :
+				numero = re.search("_[0-9]_", seq.id).goup(0).replace("_", "")
 			else :
-				info = "{}\t{}\n".format("_".join(seq_id_split[:index_system_name]), seq_id_split[index_system_name])
-			info_name.write(seq.id)
+				numero = "."
+			if "NC_" in seq.id :
+				info = "{}\t{}\t{}\n".format("_".join(seq_id_split[:2]), seq_id_split[index_system_name], numero)
+			else :
+				info = "{}\t{}\t{}\n".format(seq_id_split[0] , seq_id_split[index_system_name], numero)
+
+			# NOTE On ajoute ici que si je ne suis pas dans les clés ou je suis dans les clés mais pas la liste de valeurs (ESCO peut avoir T2SS et T4P)
+			info_split = info.split("\t")
+			if info_split[0] not in dict_info :
+				info_name.write(info)
+				dict_info[info_split[0]]=[info_split[1]]
+			elif info_split[1] not in dict_info[info_split[0]] :
+				info_name.write(info)
+				dict_info[info_split[0]].append(info_split[1])
 
 		handle.close()
 

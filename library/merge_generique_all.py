@@ -25,7 +25,7 @@ def write_merge_file(generique_report_file, all_report_file, write_file) :
 	"""
 	Function that write a new file that is the association of the two file without line
 	that are present in both
-	
+
 	:param generique_report_file: name of the macsyfinder report for generique.xml
 	:type: str
 	:param all_report_file: name of the macsyfinder report for T2SS.xml, T4P.xml, Tad.xml, Archaellum.xml
@@ -36,7 +36,7 @@ def write_merge_file(generique_report_file, all_report_file, write_file) :
 
 	with open(all_report_file, 'r') as read_report :
 		with open(write_file, 'w') as w_file :
-			report_generique = np.genfromtxt(generique_report_file, dtype='string', delimiter="\t")
+			report_generique = np.genfromtxt(generique_report_file, dtype=str, delimiter="\t")
 
 			for line in read_report :
 
