@@ -14,7 +14,7 @@ import numpy as np
 import rpy2.robjects as robjects
 import re
 import os
-from set_params import *
+from set_params import create_folder
 
 ##########################################################################################
 ##########################################################################################
@@ -137,6 +137,30 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 	print("# File wrote")
 	print("#################\n")
 
+##########################################################################################
+##########################################################################################
+
+def write_in_info(info_name, dict_info):
+
+	"""
+	Function use to rename the sequence IDs of sequence with the same name in the same file
+
+	:param info_name: open file where it will write the information about the systems
+	found in the fasta detected and verified (if exists)
+	:type: file
+	:param dict_info : The dictionnary that is create during the function rename_name_gene
+	and that is like that : {name_species: {nameSystem_numero: {name_protein1: count, name_protein2: count} ...} ...}
+	:type: dict
+	:return: Nothing
+	"""
+
+	for species in dict_info:
+		for key_system in dict_info[species] :
+			system, numero = key_system.split("_")
+			info = "{}\t{}\t{}\t{}\n".format(species, system, numero, "\t".join(["{}:{}".format(key,value) for key, value in dict_info[species][key_system].items()]))
+			info_name.write(info)
+
+	return
 
 ##########################################################################################
 ##########################################################################################
@@ -168,7 +192,7 @@ for ( file in vect_file) {
 ##########################################################################################
 ##########################################################################################
 
-def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
+def rename_name_gene(listOfFile, PATH_FASTA_RENAME, info_name, DICT_SYSTEMS, dict_info) :
 
 	"""
 	Function use to rename the sequence IDs of sequence with the same name in the same file
@@ -179,7 +203,17 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 	:param PATH_FASTA_RENAME: absolute path of the folder where the rename will
 	be write
 	:type: str
-	:return: Nothing
+	:param info_name: open file where I will write the information about the systems
+	found in the fasta detected and verified (if exists)
+	:type: file
+	:param DICT_SYSTEMS: The dictionnary that contains the name of all the
+	systems in key and the list of all the protein of this systems in keys
+	:type: dict
+	:param dict_info: dictionary we want to fill with the information about the systems found
+	:type: dict
+	:return: A dictionnary that contains {name_species: {nameSystem_numero: {name_protein1: count, name_protein2: count} ...} ...}
+	and a list of the systems found
+	:rtype: dict, list of str
 	"""
 
 	print("\n#################")
@@ -188,10 +222,9 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 
 	create_folder(PATH_FASTA_RENAME)
 
+	list_system = []
+	generic=False
 	new_listOfFile=[]
-
-	# XXX Dictionnaire qui va recuperer les associations nom d'espèce : nom de systemes pour éviter les doublons
-	dict_info={}
 
 	for my_file in listOfFile :
 		if os.stat(my_file).st_size != 0 :
@@ -234,29 +267,54 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME) :
 					seq.description = ""
 
 			SeqIO.write(seq, handle, "fasta")
+
 			if re.search("_[0-9]_", seq.id) :
 				numero = re.search("_[0-9]_", seq.id).goup(0).replace("_", "")
 			else :
 				numero = "."
+
 			if "NC_" in seq.id :
-				info = "{}\t{}\t{}\n".format("_".join(seq_id_split[:2]), seq_id_split[index_system_name], numero)
+				species_name = "_".join(seq_id_split[:2])
 			else :
-				info = "{}\t{}\t{}\n".format(seq_id_split[0] , seq_id_split[index_system_name], numero)
+				species_name = seq_id_split[0]
+
+			system = seq_id_split[index_system_name]
+
+			if system in ("Tcp", "R64", "Cof", "Bfp", "MSH", "Lng"):
+				system = "T4bP"
+
+			if system not in list_system:
+				if system.lower() in ["generique, generic"] :
+					generic=system
+				else :
+					list_system.append(system)
+
+			key_system = "{}_{}".format(system, numero)
+			protein_name = "_".join(seq_id_split[index_system_name+2:])
 
 			# NOTE On ajoute ici que si je ne suis pas dans les clés ou je suis dans les clés mais pas la liste de valeurs (ESCO peut avoir T2SS et T4P)
-			info_split = info.split("\t")
-			if info_split[0] not in dict_info :
-				info_name.write(info)
-				dict_info[info_split[0]]=[info_split[1]]
-			elif info_split[1] not in dict_info[info_split[0]] :
-				info_name.write(info)
-				dict_info[info_split[0]].append(info_split[1])
+			if species_name not in dict_info :
+				dict_info[species_name]={}
+
+			if system not in dict_info[species_name] :
+				if system.lower() in ["generique, generic"] or "_V_" in seq.id :
+					dict_info[species_name][key_system]={protein_name:0}
+				else :
+					dict_info[species_name][key_system] = {protein:0 for protein in DICT_SYSTEMS[system]}
+
+			dict_info[species_name][key_system][protein_name] += 1
 
 		handle.close()
 
+	write_in_info(info_name, dict_info)
+
+	if generic :
+		list_system = sorted(list_system).append(generic)
+
 	print()
 	print("Done!")
-	return
+
+	return dict_info, list_system
 
 ##########################################################################################
 ##########################################################################################

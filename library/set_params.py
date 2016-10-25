@@ -62,6 +62,7 @@ def read_protein_function(file_function):
 	return dict_function
 
 ##########################################################################################
+##########################################################################################
 
 def set_cutoff(fasta_file):
 
@@ -118,11 +119,12 @@ def set_dict_cutoff_init(listOfFasta, INFO_folder):
 	return cutoff_dict
 
 ##########################################################################################
+##########################################################################################
 
 def set_dict_cutoff(cutoff_file):
 
 	"""
-	Function used create the cutoff dictionnary if the file exist (file give in
+	Function used to create the cutoff dictionnary if the file exist (file give in
 	argument).
 
 	:param cutoff_file: File with the name of the file in first column and the
@@ -137,3 +139,78 @@ def set_dict_cutoff(cutoff_file):
 	cutoff_dict={line[0]:line[1:] for line in tab_numpy}
 
 	return cutoff_dict
+
+##########################################################################################
+##########################################################################################
+
+def create_dict_system(PROTEIN_FUNCTION):
+
+	"""
+	Function used to create the dictionnary that contains the name of all the
+	systems in key and the list of all the protein of this systems in keys
+
+	:param cutoff_file: dictionnary that contains the information of the function
+	name
+	:type: dict
+	:return: dictionnary that contains the name of all the
+	systems in key and the list of all the protein of this systems in keys
+	:rtype: dict
+	"""
+
+	dict_system = {}
+
+	for keys in PROTEIN_FUNCTION :
+		system, *protein = keys.split()
+		if system in dict_system :
+			dict_system[system].append("_".join(protein))
+		else :
+			dict_system[system] = ["_".join(protein)]
+
+	return dict_system
+
+##########################################################################################
+##########################################################################################
+
+def read_list_wanted(file_wanted):
+
+	"""
+	Function that read the wanted file and extract the phylum wanted
+
+	:param file_wanted: the name of the file with the name of the phylum wanted
+	one name by line.
+	:type: str
+	:return: the list of phylum wanted
+	:rtype: list of str
+	"""
+
+	list_wanted = []
+
+	with open(file_wanted, "r") as r_file:
+		for line in r_file :
+			list_wanted.append(line.rstrip())
+
+	return list_wanted
+
+##########################################################################################
+##########################################################################################
+
+def create_dict_species(dict_species, list_wanted):
+
+	"""
+	Function that create the dictionary of the phylum wanted.
+
+	:param info_tab: dictionary with the kingdom as key and the list of phylum as value for
+	all the phylum in the annotation table.
+	:type: dict
+	:param list_wanted: list of all the speies wanted
+	:type: list of str
+	:return: dictionary with the kingdom as key and the list of phylum as value.
+	:rtype: dict
+	"""
+
+	inverse_dict_species = {phylum:kingdom for phylum in dict_species[kingdom] for kingdom in dict_species}
+	dict_wanted = {kingdom:[] for kingdom in dict_species}
+	for phylum in list_wanted :
+		dict_wanted[inverse_dict_species[phylum]].append(phylum)
+
+	return dict_wanted

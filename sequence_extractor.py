@@ -95,6 +95,21 @@ merge_option.add_argument("-m",'--merge',
 							default=None,
 							help="Merge the generique .report and the other systems together without add a systems generique that is in the OTHER_REPORT. Write the new .report in GENERIQUE_REPORT directory")
 
+stat_option = parser.add_argument_group(title = "Count and statistics options")
+stat_option.add_argument("-stats",'--statistics',
+							metavar=("<ANNOTATION_TABLE>"),
+							nargs=1,
+							dest="stats",
+							default=None,
+							help="Do count and statistics of the systems found. Need a annotation table to know the kingdom and phylum of the species where the systems is found")
+stat_option.add_argument("-wanted",'--phylum_wanted',
+							metavar=("<PHYLUM_LIST>"),
+							nargs=1,
+							dest="wanted",
+							default=None,
+							help="List of all the phylum that we want information about the number of systems found with one phylum by line. (default: All the phylum found)")
+
+
 args = parser.parse_args()
 
 if args.merge :
@@ -128,6 +143,11 @@ FASTA = args.seqData
 REPORT = args.reportFile
 
 PROTEIN_FUNCTION = read_protein_function(args.defFile)
+DICT_SYSTEMS = create_dict_system(PROTEIN_FUNCTION)
+
+# XXX Dictionnaire qui va recuperer les associations nom d'espèce : nom de systemes pour éviter les doublons
+DICT_INFO_VERIFIED = {}
+DICT_INFO_DETECTED = {}
 
 # XXX List of all the function name with .fasta add at the end
 all_function = np.unique([function+".fasta" for function in PROTEIN_FUNCTION.values()]).tolist()
@@ -135,23 +155,26 @@ list_file = robjects.StrVector(all_function)
 
 # XXX Je crée le fichier ou je met mes systemes de mon analyse
 info_file = open(os.path.join(INFO,"systems_found.names"), "w")
+info_file.write("# Species_name\tSystem_name\tSystem_number\tProteins\n")
 
-# XXX Si j'ai l'option verifié mise en place je demande les deux options
+# XXX Si j'ai l'option verifié mise en place je demande les deux options.
 if args.veriFile or args.veriData :
 	if not (args.veriFile and args.veriData):
 		parser.error("you MUST provided a verified fasta file and a annotation data file. If you want verified fasta")
 	else :
-		info_file.write("# Verified systems")
+		info_file.write("## Verified systems")
 		PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified", "raw")
 		create_folder(PATH_FASTA_VERIFIED)
 		create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, args.veriFile, args.veriData)
 		PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_verified", "rename")
-		rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME, info_file)
+
+		# NOTE Pas besoin de récupérer le dictionnaire et la liste des systèmes verifiés car je ne veux pas faire de stats dessus. Et qu'ici je ne peux pas séparer les detectés des verifiés qui sont identiques.
+		rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_VERIFIED)
 		PATH_FASTA_VERIFIED = PATH_FASTA_RENAME
 
 
 # XXX Première liste de fichiers détectés
-info_file.write("# Detected systems")
+info_file.write("## Detected systems")
 PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
 create_folder(PATH_FASTA_DETECTED)
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
@@ -160,7 +183,7 @@ find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
 
 # XXX Deuxième liste de fichiers détectés après que tous les nom soit renomé
 PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_detected", "rename")
-rename_name_gene(list_file_detected, PATH_FASTA_RENAME, info_file)
+DICT_INFO_DETECTED, list_systems_detected = rename_name_gene(list_file_detected, PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_DETECTED)
 PATH_FASTA_DETECTED = PATH_FASTA_RENAME
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
@@ -187,6 +210,55 @@ if args.cutoff :
 	else :
 		PATH_FASTA_DETECTED_CUTOFF = os.path.join(PREFIX, "fasta_detected", "cut_off")
 		cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, INFO, file_cutoff=args.cutoff)
+
+# XXX Dernière étape les stats
+if args.stats :
+
+	print("\n#################")
+	print("# Count and Stats")
+	print("#################\n")
+
+	INFO_STATS = np.genfromtxt(args.stats, dtype=str, delimiter="\t", comments="##")
+	DICT_SPECIES = {kingdom:np.unique(info_tab[info_tab[:,2] == kingdom,3]) for kingdom in np.unique(info_tab[:,2])}
+
+	if args.wanted :
+		LIST_WANTED = read_list_wanted(args.wanted)
+		DICT_SPECIES_WANTED = create_dict_wanted()
+	else :
+		LIST_WANTED = np.unique(INFO_STATS[:,3]).tolist()
+		DICT_SPECIES_WANTED = DICT_SPECIES
+
+	PATH_TO_DATAFRAME = os.path.join(PREFIX,"statistics")
+	create_folder(os.path.join(PATH_TO_DATAFRAME, "xlsx"))
+	create_folder(os.path.join(PATH_TO_DATAFRAME, "tsv"))
+	create_folder(os.path.join(PATH_TO_DATAFRAME, "data_color"))
+	create_folder(os.path.join(PATH_TO_DATAFRAME, "figure"))
+
+	# XXX fichier ou je met des infos utiles
+	out_file=open(PATH_TO_DATAFRAME, "stats.info")
+
+	# XXX dataframe avec les counts pour chaques types de protéines je pense pas que je l'utilise après donc pas la peine de récupéré le dataframe
+	# NOTE Ici pour les deux dataframes j'inclus les verifiés car ils font partis du DICT_INFO. Je pense que je vais enlever les verifiés car ils sont inutiles ici.
+	df_count = count_all(INFO_STATS, DICT_INFO, PROTEIN_FUNCTION, list_file_detected, PATH_TO_DATAFRAME, DICT_SPECIES)
+
+	# XXX Dataframe avec le compte pour tous les systemes donc utile pour la suite des "stats"
+	df_systems = systems_count(INFO_STATS, DICT_INFO, PROTEIN_FUNCTION, list_file_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
+
+	# XXX premiere figure
+	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, LIST_SYSTEMS)
+
+	# XXX Deuxieme figure
+	proportion_systems(os.path.join(PATH_TO_DATAFRAME, "figure"), df_systems, out_file)
+
+	# XXX Troisieme figure
+	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_systems)
+
+	# XXX Les dataframes en couleurs
+	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED)
+
+
+	out_file.close()
+
 
 print("\n#################")
 print("# End")
