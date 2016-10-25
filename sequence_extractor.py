@@ -237,6 +237,8 @@ if args.stats :
 	# XXX fichier ou je met des infos utiles
 	out_file=open(PATH_TO_DATAFRAME, "stats.info")
 
+    print('Creating DataFrame ...')
+
 	# XXX dataframe avec les counts pour chaques types de protéines je pense pas que je l'utilise après donc pas la peine de récupéré le dataframe
 	# NOTE Ici pour les deux dataframes j'inclus les verifiés car ils font partis du DICT_INFO. Je pense que je vais enlever les verifiés car ils sont inutiles ici.
 	df_count = count_all(INFO_STATS, DICT_INFO, PROTEIN_FUNCTION, list_file_detected, PATH_TO_DATAFRAME, DICT_SPECIES)
@@ -244,6 +246,8 @@ if args.stats :
 	# XXX Dataframe avec le compte pour tous les systemes donc utile pour la suite des "stats"
 	df_systems = systems_count(INFO_STATS, DICT_INFO, PROTEIN_FUNCTION, list_file_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
 
+    print('Figure in process ...')
+	
 	# XXX premiere figure
 	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, LIST_SYSTEMS)
 
@@ -258,6 +262,8 @@ if args.stats :
 
 
 	out_file.close()
+
+    print("Done!")
 
 
 print("\n#################")
