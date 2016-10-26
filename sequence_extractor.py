@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'library'))
 
 from set_params import *
 from fasta_creation import *
-from merge_generique_all import *
+from merge_generic_all import *
+from statistique_count import *
 
 ##########################################################################################
 ##########################################################################################
@@ -73,15 +74,11 @@ extraction_option.add_argument("-cut",'--cutoff',
 							default=None,
 							help="Option to remove sequences that are way to much longer or shorter beside of the other. (If there is no file, it will calculate the cutoff and generate a file)")
 extraction_option.add_argument("-veriFile",'--verifiedFile',
-							metavar="<VERIFIED_FASTA_FILE>",
+							metavar="<VERIFIED_FASTA_FILE>, <VERIFIED_DATA>",
+							nargs=2,
 							dest="veriFile",
 							default=None,
-							help="File with the sequence in fasta of the verified file")
-extraction_option.add_argument("-veriData",'--verifiedData',
-							metavar="<VERIFIED_DATA>",
-							dest="veriData",
-							default=None,
-							help="File with the information about the verified systems with this information : #SeqID	Gene	System	SystID	Family	Note")
+							help="File with the sequence in fasta of the verified file and the file with the information about the verified systems with this information : #SeqID	Gene	System	SystID	Family	Note")
 extraction_option.add_argument("-conc",'--concatenate',
 							action='store_true',
 							dest="concat",
@@ -89,22 +86,21 @@ extraction_option.add_argument("-conc",'--concatenate',
 
 merge_option = parser.add_argument_group(title = "Merge report options")
 merge_option.add_argument("-m",'--merge',
-							metavar=("<OTHER_REPORT>", "<GENERIQUE_REPORT>"),
+							metavar=("<OTHER_REPORT>", "<GENERIC_REPORT>"),
 							nargs=2,
 							dest="merge",
 							default=None,
-							help="Merge the generique .report and the other systems together without add a systems generique that is in the OTHER_REPORT. Write the new .report in GENERIQUE_REPORT directory")
+							help="Merge the generic .report and the other systems together without add a systems generic that is in the OTHER_REPORT. Write the new .report in GENERIC_REPORT directory")
 
 stat_option = parser.add_argument_group(title = "Count and statistics options")
 stat_option.add_argument("-stats",'--statistics',
-							metavar=("<ANNOTATION_TABLE>"),
-							nargs=1,
+							metavar=("<ANNOTATION_TABLE>", "<GENOME_LIST>"),
+							nargs=2,
 							dest="stats",
 							default=None,
-							help="Do count and statistics of the systems found. Need a annotation table to know the kingdom and phylum of the species where the systems is found")
+							help="Do count and statistics of the systems found. Need a annotation table to know the kingdom and phylum of the species where the systems is found. Need a annotation table and a file with the list of genomes")
 stat_option.add_argument("-wanted",'--phylum_wanted',
 							metavar=("<PHYLUM_LIST>"),
-							nargs=1,
 							dest="wanted",
 							default=None,
 							help="List of all the phylum that we want information about the number of systems found with one phylum by line. (default: All the phylum found)")
@@ -114,11 +110,11 @@ args = parser.parse_args()
 
 if args.merge :
 	fileAll = os.path.abspath(args.merge[0])
-	fileGenerique = os.path.abspath(args.merge[1])
+	fileGeneric = os.path.abspath(args.merge[1])
 
-	fileWrite = os.path.join(os.path.dirname(fileGenerique),"merge_macsyfinder.report")
+	fileWrite = os.path.join(os.path.dirname(fileGeneric),"merge_macsyfinder.report")
 
-	write_merge_file(fileGenerique, fileAll, fileWrite)
+	write_merge_file(fileGeneric, fileAll, fileWrite)
 
 	print("\n#################")
 	print("# File merged")
@@ -158,23 +154,25 @@ info_file = open(os.path.join(INFO,"systems_found.names"), "w")
 info_file.write("# Species_name\tSystem_name\tSystem_number\tProteins\n")
 
 # XXX Si j'ai l'option verifié mise en place je demande les deux options.
-if args.veriFile or args.veriData :
-	if not (args.veriFile and args.veriData):
-		parser.error("you MUST provided a verified fasta file and a annotation data file. If you want verified fasta")
-	else :
-		info_file.write("## Verified systems")
-		PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified", "raw")
-		create_folder(PATH_FASTA_VERIFIED)
-		create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, args.veriFile, args.veriData)
-		PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_verified", "rename")
+if args.veriFile :
+	veriFile, veriData = args.veriFile
+	info_file.write("## Verified systems\n")
+	PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified", "raw")
+	create_folder(PATH_FASTA_VERIFIED)
+	create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, veriFile, veriData)
+	PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_verified", "rename")
 
-		# NOTE Pas besoin de récupérer le dictionnaire et la liste des systèmes verifiés car je ne veux pas faire de stats dessus. Et qu'ici je ne peux pas séparer les detectés des verifiés qui sont identiques.
-		rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_VERIFIED)
-		PATH_FASTA_VERIFIED = PATH_FASTA_RENAME
+	# NOTE Pas besoin de récupérer le dictionnaire et la liste des systèmes verifiés car je ne veux pas faire de stats dessus. Et qu'ici je ne peux pas séparer les detectés des verifiés qui sont identiques.
+	rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_VERIFIED)
+	PATH_FASTA_VERIFIED = PATH_FASTA_RENAME
 
 
 # XXX Première liste de fichiers détectés
-info_file.write("## Detected systems")
+print("\n#################")
+print("# Detected Fasta")
+print("#################\n")
+
+info_file.write("## Detected systems\n")
 PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
 create_folder(PATH_FASTA_DETECTED)
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
@@ -190,8 +188,9 @@ list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/'
 info_file.close()
 
 if args.concat :
-    # NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences non identique au verifiées.
-    create_folder(os.path.join(PATH_FASTA_DETECTED, "selected_concatenation"))
+	# NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences non identique au verifiées.
+	PATH_FASTA_DETECTED_SELECTED = os.path.join(PREFIX, "fasta_detected", "selected_concatenation")
+	create_folder(PATH_FASTA_DETECTED_SELECTED)
 
 	if args.cutoff :
 		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated", "raw")
@@ -199,7 +198,7 @@ if args.concat :
 		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated")
 
 	create_folder(PATH_FASTA_CONCATENATED)
-	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED)
+	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED)
 	list_file_concatenated = robjects.r['paste'](PATH_FASTA_CONCATENATED, list_file, sep='/')
 
 # XXX Deuxieme liste de fichiers concaténés ou detectés après cutoff
@@ -218,12 +217,15 @@ if args.stats :
 	print("# Count and Stats")
 	print("#################\n")
 
-	INFO_STATS = np.genfromtxt(args.stats, dtype=str, delimiter="\t", comments="##")
-	DICT_SPECIES = {kingdom:np.unique(info_tab[info_tab[:,2] == kingdom,3]) for kingdom in np.unique(info_tab[:,2])}
+	stats, genomeLIST = args.stats
+
+	PROTEIN_FUNCTION_ONLY = {"_".join(key.split("_")[1:]):value for key, value in PROTEIN_FUNCTION.items()}
+	INFO_STATS = np.genfromtxt(stats, dtype=str, delimiter="\t", comments="##")
+	DICT_SPECIES = {kingdom:np.unique(INFO_STATS[INFO_STATS[:,2] == kingdom,3]) for kingdom in np.unique(INFO_STATS[:,2])}
 
 	if args.wanted :
 		LIST_WANTED = read_list_wanted(args.wanted)
-		DICT_SPECIES_WANTED = create_dict_wanted()
+		DICT_SPECIES_WANTED = create_dict_wanted(DICT_SPECIES, LIST_WANTED)
 	else :
 		LIST_WANTED = np.unique(INFO_STATS[:,3]).tolist()
 		DICT_SPECIES_WANTED = DICT_SPECIES
@@ -235,35 +237,37 @@ if args.stats :
 	create_folder(os.path.join(PATH_TO_DATAFRAME, "figure"))
 
 	# XXX fichier ou je met des infos utiles
-	out_file=open(PATH_TO_DATAFRAME, "stats.info")
+	out_file=open(os.path.join(PATH_TO_DATAFRAME, "stats.info"), 'w')
 
-    print('Creating DataFrame ...')
+	print('Creating DataFrame ...')
 
 	# XXX dataframe avec les counts pour chaques types de protéines je pense pas que je l'utilise après donc pas la peine de récupéré le dataframe
 	# NOTE Ici pour les deux dataframes j'inclus les verifiés car ils font partis du DICT_INFO. Je pense que je vais enlever les verifiés car ils sont inutiles ici.
-	df_count = count_all(INFO_STATS, DICT_INFO, PROTEIN_FUNCTION, list_file_detected, PATH_TO_DATAFRAME, DICT_SPECIES)
+	df_count = count_all(INFO_STATS, DICT_INFO_DETECTED, PROTEIN_FUNCTION_ONLY, list_systems_detected, PATH_TO_DATAFRAME, DICT_SPECIES)
 
 	# XXX Dataframe avec le compte pour tous les systemes donc utile pour la suite des "stats"
-	df_systems = systems_count(INFO_STATS, DICT_INFO, PROTEIN_FUNCTION, list_file_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
+	df_systems = systems_count(INFO_STATS, DICT_INFO_DETECTED, PROTEIN_FUNCTION_ONLY, list_systems_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
 
-    print('Figure in process ...')
-	
+	print()
+	print('Figure in process ...')
+
 	# XXX premiere figure
-	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, LIST_SYSTEMS)
+	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, list_systems_detected)
 
 	# XXX Deuxieme figure
-	proportion_systems(os.path.join(PATH_TO_DATAFRAME, "figure"), df_systems, out_file)
+	proportion_systems(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, out_file)
 
 	# XXX Troisieme figure
 	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_systems)
 
 	# XXX Les dataframes en couleurs
-	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED)
+	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, INFO_STATS, genomeLIST)
 
 
 	out_file.close()
 
-    print("Done!")
+	print()
+	print("Done!")
 
 
 print("\n#################")

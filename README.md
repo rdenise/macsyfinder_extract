@@ -31,3 +31,12 @@ Comments in the annotation table begin with **##**
 Format file wanted phylums
 --------------------------
 This file have one phylum by line.
+
+Format Genome list file
+-----------------------
+This file contains the name of the species in the first column and the id of the replicons without header
+
+Species Name **[TAB]** replicons id 1 **[TAB]** replicons id 2
+
+### Exemple
+Xanthomonas_fuscans_4834_R_uid222814 NC_022539 NC_022540 NC_022541 NC_022542

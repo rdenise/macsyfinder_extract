@@ -160,7 +160,7 @@ def create_dict_system(PROTEIN_FUNCTION):
 	dict_system = {}
 
 	for keys in PROTEIN_FUNCTION :
-		system, *protein = keys.split()
+		system, *protein = keys.split("_")
 		if system in dict_system :
 			dict_system[system].append("_".join(protein))
 		else :
@@ -194,7 +194,7 @@ def read_list_wanted(file_wanted):
 ##########################################################################################
 ##########################################################################################
 
-def create_dict_species(dict_species, list_wanted):
+def create_dict_wanted(dict_species, list_wanted):
 
 	"""
 	Function that create the dictionary of the phylum wanted.
@@ -208,7 +208,8 @@ def create_dict_species(dict_species, list_wanted):
 	:rtype: dict
 	"""
 
-	inverse_dict_species = {phylum:kingdom for phylum in dict_species[kingdom] for kingdom in dict_species}
+	# NOTE Pour faire une double boucle il faut mettre la première boucle en premier et la deuxieme en deuxieme
+	inverse_dict_species = {phylum:kingdom for kingdom in dict_species for phylum in dict_species[kingdom] }
 	dict_wanted = {kingdom:[] for kingdom in dict_species}
 	for phylum in list_wanted :
 		dict_wanted[inverse_dict_species[phylum]].append(phylum)

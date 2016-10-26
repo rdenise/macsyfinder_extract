@@ -14,7 +14,7 @@ import numpy as np
 import rpy2.robjects as robjects
 import re
 import os
-from set_params import create_folder
+from set_params import *
 
 ##########################################################################################
 ##########################################################################################
@@ -35,7 +35,7 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 	:param INFO: absolute path of the info_folder
 	be write
 	:type: str
-	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
+	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.
 	:type: dict
 	:return: the list of the sequence ids of the hit find by MacSyFinder, the
 	list of all the new name for each sequences and the reference systems for
@@ -43,9 +43,9 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 	:rtype: list of str, list of str, list of str
 	"""
 
-	print("\n#################")
+	print("\n-----------------")
 	print("# Protein extraction")
-	print("#################\n")
+	print("-----------------\n")
 
 	report_table = np.genfromtxt(fileReport, dtype=str)
 	number_prot = report_table.shape[0]
@@ -101,9 +101,9 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 	wanted, name_genes, keys_genes = extract_protein(fileReport, INFO, PROTEIN_FUNCTION)
 	seqiter = SeqIO.parse(open(fileFasta), 'fasta')
 
-	print("\n#################")
+	print("\n-----------------")
 	print("# Writing ...")
-	print("#################\n")
+	print("-----------------\n")
 
 	progression=1
 	seq_wanted = len(wanted)
@@ -157,7 +157,7 @@ def write_in_info(info_name, dict_info):
 	for species in dict_info:
 		for key_system in dict_info[species] :
 			system, numero = key_system.split("_")
-			info = "{}\t{}\t{}\t{}\n".format(species, system, numero, "\t".join(["{}:{}".format(key,value) for key, value in dict_info[species][key_system].items()]))
+			info = "{}\t{}\t{}\t{}\n".format(species, system, numero, " ".join(["{}:{}".format(key,value) for key, value in dict_info[species][key_system].items()]))
 			info_name.write(info)
 
 	return
@@ -249,6 +249,14 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME, info_name, DICT_SYSTEMS, dic
 		for seq in fasta_reading :
 			seq_id_split = seq.id.split("_")
 
+			# NOTE Ici obligé de mettre le index_system_name avant et de reteste entre D et V car sinon pour les sequence unique ça n'existe pas
+			if "_D_" in seq.id :
+				index_system_name = seq_id_split.index("D")-1
+			elif "_V_" in seq.id :
+				index_system_name = seq_id_split.index("V")-1
+			else :
+				sys.exit("ERROR::Wrong seqID : {}".format(seq.id))
+
 			if seq.id in dict_count :
 				if dict_count[seq.id] == 0 :
 					dict_count[seq.id] += 1
@@ -256,12 +264,10 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME, info_name, DICT_SYSTEMS, dic
 					dict_count[seq.id] += 1
 					if "_D_" in seq.id :
 						# NOTE New name : NC_XXXXXX[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_D_nomProteine
-						index_system_name = seq_id_split.index("_D_")-1
 						seq.id = "_".join(seq_id_split[:index_system_name])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq_id_split[index_system_name:])
 
 					elif "_V_" in seq.id:
 						# NOTE New name : NNNN[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_V_nomProteine
-						index_system_name = seq_id_split.index("_V_")-1
 						seq.id = "_".join(seq_id_split[:index_system_name])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq_id_split[index_system_name:])
 					seq.name = seq.id
 					seq.description = ""
@@ -269,7 +275,7 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME, info_name, DICT_SYSTEMS, dic
 			SeqIO.write(seq, handle, "fasta")
 
 			if re.search("_[0-9]_", seq.id) :
-				numero = re.search("_[0-9]_", seq.id).goup(0).replace("_", "")
+				numero = re.search("_[0-9]_", seq.id).group(0).replace("_", "")
 			else :
 				numero = "."
 
@@ -284,7 +290,7 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME, info_name, DICT_SYSTEMS, dic
 				system = "T4bP"
 
 			if system not in list_system:
-				if system.lower() in ["generique, generic"] :
+				if system.lower() in ["generique", "generic"] :
 					generic=system
 				else :
 					list_system.append(system)
@@ -296,20 +302,24 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME, info_name, DICT_SYSTEMS, dic
 			if species_name not in dict_info :
 				dict_info[species_name]={}
 
-			if system not in dict_info[species_name] :
-				if system.lower() in ["generique, generic"] or "_V_" in seq.id :
+			if key_system not in dict_info[species_name] :
+				if system.lower() in ["generique", "generic"] or "_V_" in seq.id :
 					dict_info[species_name][key_system]={protein_name:0}
 				else :
 					dict_info[species_name][key_system] = {protein:0 for protein in DICT_SYSTEMS[system]}
 
-			dict_info[species_name][key_system][protein_name] += 1
+			try :
+				dict_info[species_name][key_system][protein_name] += 1
+			except KeyError :
+				dict_info[species_name][key_system][protein_name] = 1
 
 		handle.close()
 
 	write_in_info(info_name, dict_info)
 
 	if generic :
-		list_system = sorted(list_system).append(generic)
+		list_system = sorted(list_system)
+		list_system.append(generic)
 
 	print()
 	print("Done!")
@@ -593,7 +603,7 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 ##########################################################################################
 
 
-def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO_folder, PATH_FASTA_CONCATENATED):
+def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO_folder, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED):
 
 	"""
 	Function that concatenate the verified and detected file and remove detected sequences
@@ -610,6 +620,8 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	:param INFO_folder: the absolute path to the info folder
 	:type: str
 	:param PATH_FASTA_CONCATENATED: absolute path to concatenated fasta folder
+	:type: str
+	:param PATH_FASTA_DETECTED_SELECTED: absolute path to selected fasta folder
 	:type: str
 	:return: Nothing
 	"""
@@ -675,7 +687,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	for fasta_file in fasta_name :
 		verified_fasta=os.path.join(PATH_FASTA_VERIFIED, fasta_file)
 		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
-		new_detected_fasta=os.path.join(PATH_FASTA_DETECTED, "selected_concatenated", fasta_file)
+		new_detected_fasta=os.path.join(PATH_FASTA_DETECTED_SELECTED, fasta_file)
 		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
 
 		os.system('cat "{}" > "{}"'.format(verified_fasta, concatenated_fasta))
