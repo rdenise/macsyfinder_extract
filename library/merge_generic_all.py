@@ -35,13 +35,21 @@ def write_merge_file(generique_report_file, all_report_file, write_file) :
 	:type: str
 	"""
 
-	with open(all_report_file, 'r') as read_report :
+	length = len(open(all_report_file, 'rt').readlines())
+
+	with open(all_report_file, 'rt') as read_report :
 		with open(write_file, 'w') as w_file :
 			report_generique = np.genfromtxt(generique_report_file, dtype=str, delimiter="\t")
 
+			progression = 1
+
 			for line in read_report :
 
-				split_line = line.rstrip("\r\n").split("\t")
+				sys.stdout.write("{:.2f}% : {}/{} line of report read\r".format(progression/float(length)*100, progression,length))
+				sys.stdout.flush()
+				progression += 1
+
+				split_line = line.rstrip().split("\t")
 
 				if split_line[0] in report_generique[:,0] :
 					index = report_generique[:,0].tolist().index(split_line[0])
@@ -62,3 +70,6 @@ def write_merge_file(generique_report_file, all_report_file, write_file) :
 
 			for line in report_generique :
 				w_file.write("\t".join(line.tolist())+"\n")
+
+	print()
+	return

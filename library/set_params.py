@@ -171,47 +171,20 @@ def create_dict_system(PROTEIN_FUNCTION):
 ##########################################################################################
 ##########################################################################################
 
-def read_list_wanted(file_wanted):
-
-	"""
-	Function that read the wanted file and extract the phylum wanted
-
-	:param file_wanted: the name of the file with the name of the phylum wanted
-	one name by line.
-	:type: str
-	:return: the list of phylum wanted
-	:rtype: list of str
-	"""
-
-	list_wanted = []
-
-	with open(file_wanted, "r") as r_file:
-		for line in r_file :
-			list_wanted.append(line.rstrip())
-
-	return list_wanted
-
-##########################################################################################
-##########################################################################################
-
-def create_dict_wanted(dict_species, list_wanted):
+def create_dict_wanted(file_wanted):
 
 	"""
 	Function that create the dictionary of the phylum wanted.
 
-	:param info_tab: dictionary with the kingdom as key and the list of phylum as value for
-	all the phylum in the annotation table.
-	:type: dict
-	:param list_wanted: list of all the speies wanted
-	:type: list of str
+	:param list_wanted: name of the file of phylum wanted
+	:type: str
 	:return: dictionary with the kingdom as key and the list of phylum as value.
 	:rtype: dict
 	"""
 
-	# NOTE Pour faire une double boucle il faut mettre la première boucle en premier et la deuxieme en deuxieme
-	inverse_dict_species = {phylum:kingdom for kingdom in dict_species for phylum in dict_species[kingdom] }
-	dict_wanted = {kingdom:[] for kingdom in dict_species}
-	for phylum in list_wanted :
-		dict_wanted[inverse_dict_species[phylum]].append(phylum)
+	info = np.genfromtxt(file_wanted, dtype="str", delimiter="\t")
+	dict_wanted = {kingdom:[] for kingdom in np.unique(info[:,0])}
+	for kingdom, phylum in info:
+		dict_wanted[kingdom].append(phylum)
 
-	return dict_wanted
+	return dict_wanted, info[:,1].tolist()

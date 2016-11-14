@@ -56,9 +56,15 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 			system_number = report_table[index][7].split('_')[-1]
 
 			if int(system_number) > 1 :
-				report_table[index][1] = "_".join(report_table[index][1].split('_')[:-1])+"_"+system_number
+				# NOTE Pour gembases < 2015
+				#report_table[index][1] = "_".join(report_table[index][1].split('_')[:-1])+"_"+system_number
+				# NOTE Pour gembases > 2016
+				report_table[index][1] = ".".join(report_table[index][1].split('.')[:-1])+"_"+system_number
 			else:
-				report_table[index][1] = "_".join(report_table[index][1].split('_')[:-1])
+				# NOTE Pour gembases < 2015
+				#report_table[index][1] = "_".join(report_table[index][1].split('_')[:-1])
+				# NOTE Pour gembases > 2016
+				report_table[index][1] = ".".join(report_table[index][1].split('.')[:-1])
 		else :
 			index_remove.append(index)
 
@@ -68,6 +74,7 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 
 	print("There are {} proteins remove during this operation because they are not in the dictionnary".format(number_remove_protein))
 
+	# NOTE AAAAKKK.B.LLLLL[_numero de systeme si deux systemes trouvés]_nomSysteme_D_nomProteine (for 2016 gembase format)
 	# NOTE NC_XXXXXX[_numero de systeme si deux systemes trouvés]_nomSysteme_D_nomProteine (for 2015 gembase format)
 	# NOTE XXXX[_numero de systeme si deux systemes trouvés]_nomSysteme_D_nomProteine (for 2013 gembase format)
 	new_name = [report_table[i][1]+'_'+report_table[i][6]+'_D_'+"_".join(report_table[i][4].split('_')[1:]) for i in range(report_table.shape[0])]
@@ -262,12 +269,13 @@ def rename_name_gene(listOfFile, PATH_FASTA_RENAME, info_name, DICT_SYSTEMS, dic
 					dict_count[seq.id] += 1
 				else :
 					dict_count[seq.id] += 1
-					if "_D_" in seq.id :
+					if "NC_" in seq.id :
 						# NOTE New name : NC_XXXXXX[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_D_nomProteine
 						seq.id = "_".join(seq_id_split[:index_system_name])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq_id_split[index_system_name:])
 
-					elif "_V_" in seq.id:
+					else :
 						# NOTE New name : NNNN[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_V_nomProteine
+						# NOTE AAAAKKK.B.LLLLL[_numero de systeme si deux systemes trouvés][_Num(et le nombre de fois nom trouvé)]_nomSysteme_D_nomProteine
 						seq.id = "_".join(seq_id_split[:index_system_name])+"_Num"+str(dict_count[seq.id])+"_"+"_".join(seq_id_split[index_system_name:])
 					seq.name = seq.id
 					seq.description = ""
@@ -376,20 +384,21 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat):
 				if info_extract[position][1] in PROTEIN_FUNCTION :
 					writing_file = re.search('[a-zA-Z0-9/_]+'+PROTEIN_FUNCTION[info_extract[position][1]]+'\.fasta', "\t".join(listOfFile)).group(0)
 
-					seq.name = info_extract[position][3]+"_V_"+"_".join(info_extract[position][1].split("_")[1:])
+					seq.name = "{}_{}_V_{}".format(info_extract[position][-1], info_extract[position][3].split("_")[-1], "_".join(info_extract[position][1].split("_")[1:]))
+
 					seq.id = seq.name
 					seq.description = ''
 
 					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 			else :
-				# NOTE Permet d'avoir le bon nom si dans la colonne 2 j'ai que gspD par exemple et comme ça je reforme T2SS_gspD
+				# NOTE Permet d'avoir le bon nom si dans la colonne 2 j'ai que gspD par exemple et comme ça je reforme T2SS_gspD pour les sytèmes Com T4bP ...
 
 				new_name = info_extract[position][2]+"_"+info_extract[position][1]
 
 				if new_name in PROTEIN_FUNCTION :
 					writing_file = re.search('[/a-zA-Z0-9_]*'+PROTEIN_FUNCTION[new_name]+'\.fasta', "\t".join(listOfFile)).group(0)
 
-					seq.name = info_extract[position][3]+"_V_"+info_extract[position][1]
+					seq.name = "{}_{}_V_{}".format(info_extract[position][-1], info_extract[position][2], info_extract[position][1])
 					seq.id = seq.name
 					seq.description = ''
 

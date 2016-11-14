@@ -69,7 +69,7 @@ def count_all(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_DATAF
 	It's a count by protein so I'll hav the number of ATPase in T2SS for Proteobacteria
 
 	:param info_tab: the genfromtxt of a tabulate file with the information about the replicons
-	:type: numpay.ndarray
+	:type: numpy.ndarray
 	:param DICT_INFO: dictionnary that contains all the information about all the
 	systems found (create by rename_name_gene)
 	:type: str
@@ -100,8 +100,8 @@ def count_all(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_DATAF
 	for species_id in DICT_INFO :
 		for key_systems in DICT_INFO[species_id] :
 			system_name, number = key_systems.split("_")
-			kingdom = info_tab[species_id][1]
-			phylum = info_tab[species_id][2]
+			kingdom = info_tab[species_id][2]
+			phylum = info_tab[species_id][3]
 
 			if phylum in ['Archaea','Bacteria'] :
 				phylum = 'Other'
@@ -200,11 +200,15 @@ def systems_count(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_D
 	for species_id in DICT_INFO :
 		for key_systems in DICT_INFO[species_id] :
 			system_name, number = key_systems.split("_")
-			kingdom = info_tab[species_id][1]
+			kingdom = info_tab[species_id][2]
 
-			phylum = info_tab[species_id][2]
-			if phylum not in list_wanted :
-				phylum = "Other"
+			lineage = info_tab[species_id][-2]
+
+			phylum = "Other"
+
+			for line in lineage.split(";"):
+				if line in list_wanted :
+					phylum = line
 
 			df_count_system.loc[(kingdom,phylum),system_name] += 1
 			df_count_system.loc[(kingdom,"Total_system"),system_name] += 1
@@ -356,12 +360,10 @@ def do_gradient(data, count_df, color='red'):
 ##########################################################################################
 ##########################################################################################
 
-def count_series(genome_list, list_wanted, info_tab):
+def count_series(list_wanted, info_tab):
 	"""
 	Create a list with the count of each phylum wanted
 
-	:param genome_list: name of a file that contains a list of all the genome in the initial database
-	:type: str
 	:param list_wanted: list of all the phylum wanted
 	:type: list of str
 	:param info_tab: the genfromtxt of a tabulate file with the information about the replicons
@@ -369,11 +371,6 @@ def count_series(genome_list, list_wanted, info_tab):
 	:return: a Series that contain the count of each phylum wanted
 	:rtype: pd.Series
 	"""
-	max_columns=[]
-	with open(genome_list, 'r') as r_file:
-	     for line in r_file :
-		        max_columns.append(len(line.split()))
-	max_columns = max(max_columns)
 
 	dict_position = {phylum:list_wanted.index(phylum) for phylum in list_wanted}
 	info_tab = {line[0]:line[1:] for line in info_tab}
@@ -381,10 +378,12 @@ def count_series(genome_list, list_wanted, info_tab):
 	len_wanted = len(list_wanted)
 	series_wanted = pd.Series(data=np.zeros(len_wanted), index=list_wanted)
 
-	genome_list = pd.read_csv(genome_list, sep=' ', names=[i for i in range(max_columns)], header=None, engine='python')
-	for species in genome_list.iloc[:,1] :
-		if info_tab[species][2] in list_wanted :
-			series_wanted[info_tab[species][2]] += 1
+	for species in info_tab :
+		lineage = info_tab[species][-2]
+		for line in lineage.split(";") :
+			if line in list_wanted :
+				series_wanted.loc[line] += 1
+				break
 
 	return series_wanted
 
@@ -392,7 +391,7 @@ def count_series(genome_list, list_wanted, info_tab):
 ##########################################################################################
 ##########################################################################################
 
-def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, genome_list):
+def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, w_file):
 
 	"""
 	Function that plot the proportion of each systems found
@@ -406,14 +405,28 @@ def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, geno
 	:type: dict
 	:param list_wanted: list of all the phylum wanted
 	:type: list of str
-	:param info_tab: the genfromtxt of a tabulate file with the information about the replicons
+	:param INFO_STATS: the genfromtxt of a tabulate file with the information about the replicons
 	:type: numpay.ndarray
-	:param genome_list: name of a file that contains a list of all the genome in the initial database
-	:type: str
+	:param w_file: Open file where the textual information will be write
+ 	:type: file
 	:return: Nothing
 	"""
 
-	count_df=pd.DataFrame(count_series(genome_list, list_wanted, INFO_STATS).values, index=pd.MultiIndex.from_tuples([(kingdom,phylum) for kingdom in ['Bacteria', 'Archaea'] for phylum in dict_wanted[kingdom] ]), columns=['Count'])
+	series_wanted = count_series(list_wanted, INFO_STATS)
+	print(list_wanted)
+	count_df=pd.DataFrame(series_wanted.values, index=pd.MultiIndex.from_tuples([(kingdom,phylum) for kingdom in ['Bacteria', 'Archaea'] for phylum in dict_wanted[kingdom] ]), columns=['Count'])
+
+	print(count_df)
+	print(count_df.loc['Bacteria', 'Gammaproteobacteria'] ,count_df.loc['Bacteria', 'Betaproteobacteria'], count_df.loc['Bacteria', 'Alphaproteobacteria'])
+
+	# XXX On met un tableau recapitulatif en texte
+	w_file.write("\n\nPercentage Proteobacteria (𝛼, 𝛽, 𝛾) versus other\n")
+	w_file.write("------------------------------------------------\n\n")
+	mini_tab = pd.DataFrame(np.zeros(2), index=['Proteobacteria','Rest'] ,columns=["Count"])
+	mini_tab.loc['Proteobacteria'] = count_df.loc['Bacteria', 'Gammaproteobacteria'] + count_df.loc['Bacteria', 'Betaproteobacteria'] + count_df.loc['Bacteria', 'Alphaproteobacteria']
+	mini_tab.loc['Rest'] = count_df.sum() - mini_tab.loc['Proteobacteria']
+	mini_tab.T.to_string(w_file)
+
 	count_df.index.names = ["Kingdom", "Phylum"]
 
 	drop_df = df.drop([('Bacteria', 'Other'), ('Archaea', 'Other'), "Summary_total", ('Bacteria', 'Total_system'), ('Archaea', 'Total_system')])

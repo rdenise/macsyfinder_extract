@@ -24,19 +24,14 @@ Format annotation file
 ----------------------
 The annotation file need to be a tabulate separate file with these columns:  
 
-species_id **[TAB]** full_name_of_the_species **[TAB]** kingdom **[TAB]** phylum  
+species id **[TAB]** taxonomic NCBI id **[TAB]** full_name_of_the_species **[TAB]** kingdom **[TAB]** phylum  **[TAB]** lineage **[TAB]** NCBI ids of the replicon within the genome
 
 Comments in the annotation table begin with **##**  
 
 Format file wanted phylums
 --------------------------
-This file have one phylum by line.
+This file have two columns each line have one with the kingdom and one phylum.
 
-Format Genome list file
------------------------
-This file contains the name of the species in the first column and the id of the replicons without header
+kingdom **[TAB]** phylum
 
-Species Name **[TAB]** replicons id 1 **[TAB]** replicons id 2
-
-### Exemple
-Xanthomonas_fuscans_4834_R_uid222814 NC_022539 NC_022540 NC_022541 NC_022542
+Comments in the annotation table begin with **#**  

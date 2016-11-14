@@ -94,11 +94,10 @@ merge_option.add_argument("-m",'--merge',
 
 stat_option = parser.add_argument_group(title = "Count and statistics options")
 stat_option.add_argument("-stats",'--statistics',
-							metavar=("<ANNOTATION_TABLE>", "<GENOME_LIST>"),
-							nargs=2,
+							metavar=("<ANNOTATION_TABLE>"),
 							dest="stats",
 							default=None,
-							help="Do count and statistics of the systems found. Need a annotation table to know the kingdom and phylum of the species where the systems is found. Need a annotation table and a file with the list of genomes")
+							help="Do count and statistics of the systems found. Need a annotation table to know the kingdom and phylum of the species where the systems is found. Need a annotation table")
 stat_option.add_argument("-wanted",'--phylum_wanted',
 							metavar=("<PHYLUM_LIST>"),
 							dest="wanted",
@@ -112,7 +111,7 @@ if args.merge :
 	fileAll = os.path.abspath(args.merge[0])
 	fileGeneric = os.path.abspath(args.merge[1])
 
-	fileWrite = os.path.join(os.path.dirname(fileGeneric),"merge_macsyfinder.report")
+	fileWrite = os.path.join(os.path.dirname(os.path.dirname(fileGeneric)),"merge_macsyfinder.report")
 
 	write_merge_file(fileGeneric, fileAll, fileWrite)
 
@@ -217,17 +216,14 @@ if args.stats :
 	print("# Count and Stats")
 	print("#################\n")
 
-	stats, genomeLIST = args.stats
-
 	PROTEIN_FUNCTION_ONLY = {"_".join(key.split("_")[1:]):value for key, value in PROTEIN_FUNCTION.items()}
-	INFO_STATS = np.genfromtxt(stats, dtype=str, delimiter="\t", comments="##")
-	DICT_SPECIES = {kingdom:np.unique(INFO_STATS[INFO_STATS[:,2] == kingdom,3]) for kingdom in np.unique(INFO_STATS[:,2])}
+	INFO_STATS = np.genfromtxt(args.stats, dtype=str, delimiter="\t", comments="##")
+	DICT_SPECIES = {kingdom:np.unique(INFO_STATS[INFO_STATS[:,3] == kingdom,4]) for kingdom in np.unique(INFO_STATS[:,3]).tolist()}
 
 	if args.wanted :
-		LIST_WANTED = read_list_wanted(args.wanted)
-		DICT_SPECIES_WANTED = create_dict_wanted(DICT_SPECIES, LIST_WANTED)
+		DICT_SPECIES_WANTED, LIST_WANTED = create_dict_wanted(args.wanted)
 	else :
-		LIST_WANTED = np.unique(INFO_STATS[:,3]).tolist()
+		LIST_WANTED = np.unique(INFO_STATS[:,4]).tolist()
 		DICT_SPECIES_WANTED = DICT_SPECIES
 
 	PATH_TO_DATAFRAME = os.path.join(PREFIX,"statistics")
@@ -261,7 +257,7 @@ if args.stats :
 	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_systems)
 
 	# XXX Les dataframes en couleurs
-	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, INFO_STATS, genomeLIST)
+	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, INFO_STATS, out_file)
 
 
 	out_file.close()
