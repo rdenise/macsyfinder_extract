@@ -14,6 +14,8 @@ import numpy as np
 import rpy2.robjects as robjects
 import re
 import os
+import shutil
+from multiprocessing import Process
 from set_params import *
 
 ##########################################################################################
@@ -127,7 +129,7 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 			seq.id = seq.name
 
 			if keys_genes[index] in PROTEIN_FUNCTION :
-				writing_file = re.search('[a-zA-Z0-9/_]+'+PROTEIN_FUNCTION[keys_genes[index]]+'\.fasta', "\t".join(listOfFile)).group(0)
+				writing_file = re.search('[a-zA-Z0-9/_]+{}\.fasta'.format(PROTEIN_FUNCTION[keys_genes[index]]), "\t".join(listOfFile)).group(0)
 
 				SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 			else :
@@ -143,6 +145,119 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 	print("\n#################")
 	print("# File wrote")
 	print("#################\n")
+
+	return
+
+##########################################################################################
+##########################################################################################
+def write_fasta_multithreads(subfolderFasta, listOfFile, wanted):
+
+	'''
+	:param subfolderFasta: name of the fasta database used in the MacSyfinder analysis split by species and by process
+	:type: str
+	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
+	:type: list of str
+	:param wanted: name of the wanted sequence to write
+	:type: str
+	:return: Nothing
+	'''
+
+	list_handle = [open(my_file,"w") for my_file in listOfFile]
+
+	for fileFasta in subfolderFasta :
+		seqiter = SeqIO.parse(open(fileFasta), 'fasta')
+
+		for seq in seqiter :
+			if seq.id in wanted:
+
+				index = wanted.index(seq.id)
+				seq.description = ''
+				seq.name = name_genes[index]
+				seq.id = seq.name
+
+				if keys_genes[index] in PROTEIN_FUNCTION :
+					writing_file = re.search('[a-zA-Z0-9/_]+{}\.fasta'.format(PROTEIN_FUNCTION[keys_genes[index]]), "\t".join(listOfFile)).group(0)
+					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
+
+				else :
+					sys.exit("ERROR:: Function not known : {}".format(keys_genes[index]))
+
+
+	# XXX Close all file
+	for open_file in list_handle:
+		open_file.close()
+
+	return
+
+##########################################################################################
+##########################################################################################
+
+
+def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION, nb_thread):
+
+	"""
+	This function is used to create the fasta with MacSyFinder hits found
+
+	:param folderFasta: name of the fasta database used in the MacSyfinder analysis split by species
+	:type: str
+	:param fileReport: name of the file .report of the MacSyFinder analysis
+	:type: str
+	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
+	:type: list of str
+	:param INFO: absolute path of the info_folder
+	:type: str
+	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
+	:type: dict
+	:param nb_thread: number of thread choose by the user
+	:type: int
+	:return: Nothing
+	"""
+
+	nb_fasta = len(folderFasta)
+
+	list_process = [folderFasta]
+
+	# XXX Permet de ne pas avoir plus de threads que de fichier
+	if nb_fasta//nb_thread == 0 :
+		nb_thread = nb_fasta%nb_thread
+
+	split_list_folder = [folderFasta[i:i+nb_fasta//nb_thread] for i in range(0, nb_fasta, nb_fasta//nb_thread)]
+
+	wanted, name_genes, keys_genes = extract_protein(fileReport, INFO, PROTEIN_FUNCTION)
+
+	for i in range(nb_thread) :
+		process_directory = os.path.join(os.path.dirname(listOfFile[0]), "tmp","process_{}".format(i))
+		create_folder(process_directory)
+
+		# XXX Je crée les fichiers fasta temporaire
+		process_list_file = [os.path.join(process_directory, os.path.basename(myfile)) for myfile in listOfFile]
+
+		# XXX Je crée et lance les process qui exécuteront la fonction d'écriture pour chaque lot de fasta
+		list_process.append(Process(target=write_fasta_multithreads, args=(split_list_folder[i], process_list_file, wanted)))
+		list_process[-1].start()
+
+		print("Begin process for {}".format(process.id))
+
+	for process in list_process :
+		# XXX J'attend après chaque process qu'il finisse
+		process.join()
+		print("Done for {} !".format(process.id))
+
+	for myfile in listOfFile :
+		file_name = os.path.basename(myfile)
+		list_tmp = glob.glob(os.path.dirname(listOfFile), "tmp", "*", file_name))
+
+		# XXX Je concatène toutes les séquences extraitent
+		os.system("cat {} > {}".format(" ".join(list_tmp), myfile))
+
+	# XXX Je supprime tout le dossier tmp
+	shutil.rmtree(os.path.join(os.path.dirname(listOfFile[0]), "tmp"))
+
+	print("\n#################")
+	print("# File wrote")
+	print("#################\n")
+
+	return
 
 ##########################################################################################
 ##########################################################################################

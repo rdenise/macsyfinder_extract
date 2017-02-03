@@ -46,9 +46,9 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
 general_option = parser.add_argument_group(title = "General input dataset options")
 general_option.add_argument("-s",'--seqdata',
  							required=True,
-							metavar="<file>",
+							metavar="<file(s)>",
 							dest="seqData",
-							help="File with all the fasta sequences used for macsyfinder analysis")
+							help="File with all the fasta sequences used for macsyfinder analysis. If you want to multiprocessing put the name of the folder split by species")
 general_option.add_argument("-r",'--reportfile',
  							required=True,
 							metavar="<file>",
@@ -83,6 +83,11 @@ extraction_option.add_argument("-conc",'--concatenate',
 							action='store_true',
 							dest="concat",
 							help="Allow to concatenate detected sequences and verified sequences")
+extraction_option.add_argument("w", "--worker_proc",
+                            metavar="<NUMBER_OF_THREADS>",
+                            dest="number_proc",
+                            default=1,
+                            help="Number of processor you want to used in multi_threading")
 
 merge_option = parser.add_argument_group(title = "Merge report options")
 merge_option.add_argument("-m",'--merge',
@@ -176,7 +181,11 @@ PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
 create_folder(PATH_FASTA_DETECTED)
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
-find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+# XXX Je teste si je suis en multi_thread ou pas
+if args.number_proc == 1  :
+	find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+else :
+	find_in_fasta_multithreads(glob.glob(FASTA), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
 
 # XXX Deuxième liste de fichiers détectés après que tous les nom soit renomé
 PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_detected", "rename")

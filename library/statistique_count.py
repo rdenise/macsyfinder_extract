@@ -282,8 +282,8 @@ def proportion_systems(PATH_TO_FIGURE, df, w_file):
 	"""
 
 	# XXX On met un tableau recapitulatif en texte
-	w_file.write("Percentage dans les kingdoms\n")
-	w_file.write("----------------------------\n\n")
+	w_file.write("Percentage within kingdoms\n")
+	w_file.write("--------------------------\n\n")
 	mini_tab = df.xs("Total_system", level="Phylum").iloc[:,:5].div(df.xs("Total_system", level="Phylum").Total, axis='index')*100
 	mini_tab.to_string(w_file)
 
