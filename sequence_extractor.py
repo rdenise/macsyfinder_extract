@@ -114,6 +114,8 @@ stat_option.add_argument("-wanted",'--phylum_wanted',
 # TODO Verifier donc que dans mes stats j'ai le compte unique et non pas tous les replicons au final je dois avoir UNE ESPECE (ESCO par exemple) == COMPTER POUR 1 GENOME (les ESCO001.00001 et ESCO001.000073 = 1 = ESCO001)
 # TODO Pas sur de ça c'est absolument pas ce qu'il y a a faire pour les stats, qui nécéssite de garder tous les detecté même les identiques au vérifié, les stat se font sur les vérifié donc option n'en ai pas une.
 # TODO Donc faire deux fichier 1 avec doublon et l'autre sans doublons (sans doublon == pour IQTREE)
+# TODO Normalement je ne remove les séquences que lors de la concatenation de verifiés et des detectés donc si mes stats sont sur les detectés alors pas de soucis j'ai toujours toutes les information sur mes systèmes.
+# TODO Peut être entre tous les systèmes prendre celui qui a le plus de gènes ? et non pas le premier. Mais du coup fait faire plus de calculs. 
 
 args = parser.parse_args()
 
@@ -201,7 +203,7 @@ list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/'
 info_file.close()
 
 # XXX Creation de la tble de translation renomée.
-rename_seq_translation_table(INFO_folder)
+rename_seq_translation_table(INFO)
 
 if args.concat :
 	# NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences non identique au verifiées.

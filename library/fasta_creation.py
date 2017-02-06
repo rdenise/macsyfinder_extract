@@ -15,7 +15,6 @@ import rpy2.robjects as robjects
 import re
 import os
 import shutil
-import pandas as pd
 from multiprocessing import Process
 import glob
 from set_params import *
@@ -834,7 +833,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 				id_seq_verif = list_id_verified[index].split("_")
 				id_seq_verif = re.sub("Num[0-9]_", "", "_".join(id_seq_verif[:id_seq_verif.index("V")]))
 
-				# NOTE dans le dictionnaire je met le système vérifié en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisème
+				# NOTE dans le dictionnaire je met le système vérifié en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisième
 				dict_remove[id_seq]=[id_seq_verif,[], seq.id]
 
 			elif seq.seq in list_seq_detected_OK :
@@ -842,7 +841,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 
 				id_seq_reference = list_id_detected_OK[index]
 
-				# NOTE dans le dictionnaire je met le système référence en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisème
+				# NOTE dans le dictionnaire je met le système référence en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisième
 				dict_remove[id_seq]=[id_seq_reference,[], seq.id]
 
 			else :
@@ -903,6 +902,8 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 def rename_seq_translation_table(INFO_folder):
 
 	# NOTE Vérifié si c'est correct avec le verifier et le detected en comparant les séquences
+	# NOTE ACBA002.B.00004.C001_00316	ACBA002.B.00004_T4P_D_pilE
+	# NOTE ACBA002.B.00004.C001_00317	ACBA002.B.00004_Num2_T4P_D_pilE
 
 	"""
 	Function that will change the name of the rename sequence (it use the fact
@@ -930,12 +931,12 @@ def rename_seq_translation_table(INFO_folder):
 					id_split = split_line[-1].split("_")
 
 					# NOTE Ici obligé de mettre le index_system_name avant et de reteste entre D et V car sinon pour les sequence unique ça n'existe pas
-					if "_D_" in seq.id :
+					if "_D_" in split_line[-1] :
 						index_system_name = id_split.index("D")-1
-					elif "_V_" in seq.id :
+					elif "_V_" in split_line[-1] :
 						index_system_name = id_split.index("V")-1
 
-					new_name = "{}_Num{}_{}".format("_".join(id_split[:index_system_name]), str(dict_count[seq.id]), "_".join(id_split[index_system_name:]))
+					new_name = "{}_Num{}_{}".format("_".join(id_split[:index_system_name]), str(dict_count[split_line[-1]]), "_".join(id_split[index_system_name:]))
 					tmp_file.write(line.replace(split_line[-1], new_name))
 
 				else :
