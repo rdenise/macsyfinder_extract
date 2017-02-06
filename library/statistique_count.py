@@ -284,7 +284,7 @@ def proportion_systems(PATH_TO_FIGURE, df, w_file):
 	# XXX On met un tableau recapitulatif en texte
 	w_file.write("Percentage within kingdoms\n")
 	w_file.write("--------------------------\n\n")
-	mini_tab = df.xs("Total_system", level="Phylum").iloc[:,:5].div(df.xs("Total_system", level="Phylum").Total, axis='index')*100
+	mini_tab = df.xs("Total_system", level="Phylum").iloc[:,:-1].div(df.xs("Total_system", level="Phylum").Total, axis='index')*100
 	mini_tab.to_string(w_file)
 
 	# XXX Et le même en figure
@@ -294,13 +294,13 @@ def proportion_systems(PATH_TO_FIGURE, df, w_file):
 	# XXX Mise en forme
 	plt.xlabel("System")
 	plt.ylabel("Percentage")
-	ax.set_xticklabels(["Archaea", "Bacteria"])
+	ax.set_xticklabels(['Bacteria', 'Archaea'])
 	plt.title("Percentage of studied system found in each kingdom clades studied")
 	plt.savefig(os.path.join(PATH_TO_FIGURE,"proportion_found_each_kingdom.pdf"))
 
 	# XXX Proportion générale
 	fig = plt.figure()
-	ax = (df.xs("Summary_total", level="Kingdom").iloc[:,:5]/df.xs("Summary_total", level="Kingdom").Total.ix[0]).plot(kind='bar')
+	ax = (df.xs("Summary_total", level="Kingdom").iloc[:,:-1]/df.xs("Summary_total", level="Kingdom").Total.ix[0]).plot(kind='bar')
 
 	# XXX Mise en forme
 	plt.xlabel("System")
@@ -380,7 +380,8 @@ def count_series(list_wanted, info_tab):
 
 	for species in info_tab :
 		lineage = info_tab[species][-2]
-		for line in lineage.split(";") :
+		split_lineage = lineage.split(";")
+		for line in  split_lineage :
 			if line in list_wanted :
 				series_wanted.loc[line] += 1
 				break
@@ -413,11 +414,14 @@ def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, w_fi
 	"""
 
 	series_wanted = count_series(list_wanted, INFO_STATS)
-	print(list_wanted)
 	count_df=pd.DataFrame(series_wanted.values, index=pd.MultiIndex.from_tuples([(kingdom,phylum) for kingdom in ['Bacteria', 'Archaea'] for phylum in dict_wanted[kingdom] ]), columns=['Count'])
 
-	print(count_df)
-	print(count_df.loc['Bacteria', 'Gammaproteobacteria'] ,count_df.loc['Bacteria', 'Betaproteobacteria'], count_df.loc['Bacteria', 'Alphaproteobacteria'])
+	# XXX On met le tableau de compte dans le fichier texte ce qui peut être plus rapide pour trouver combien j'ai de génomes des espèces voulut dans ma database
+	w_file.write("\n\nNumber of genomes wanted in the database used\n")
+	w_file.write("---------------------------------------------\n\n")
+	# XXX Je transpose pas car sinon c'est trop grand en ligne, plus lisible en colonne
+	count_df.to_string(w_file)
+
 
 	# XXX On met un tableau recapitulatif en texte
 	w_file.write("\n\nPercentage Proteobacteria (𝛼, 𝛽, 𝛾) versus other\n")

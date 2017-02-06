@@ -59,11 +59,11 @@ general_option.add_argument("-d",'--defFile',
 							metavar="<file>",
 							dest="defFile",
 							help="Tabular file with the the function name in first column and name of the protein in the other")
-general_option.add_argument("-pre",'--prefix',
+general_option.add_argument("-o",'--output',
  							default=None,
-							dest="prefix",
-							metavar='<PREFIX>',
-							help="Using <PREFIX> for output files (default: reportFile directory)")
+							dest="output",
+							metavar='<OUTPUT>',
+							help="Using <OUTPUT> for output files (default: reportFile directory)")
 
 extraction_option = parser.add_argument_group(title = "Extraction options")
 extraction_option.add_argument("-cut",'--cutoff',
@@ -83,7 +83,7 @@ extraction_option.add_argument("-conc",'--concatenate',
 							action='store_true',
 							dest="concat",
 							help="Allow to concatenate detected sequences and verified sequences")
-extraction_option.add_argument("w", "--worker_proc",
+extraction_option.add_argument("-w", "--worker_proc",
                             metavar="<NUMBER_OF_THREADS>",
                             dest="number_proc",
                             default=1,
@@ -110,6 +110,11 @@ stat_option.add_argument("-wanted",'--phylum_wanted',
 							help="List of all the phylum that we want information about the number of systems found with one phylum by line. (default: All the phylum found)")
 
 
+# TODO Mettre une option pour laisser les doublons de séquences identiques car ici si une séquence est identique entre deux systemes un des deux systèmes est supprimé donc ne compte pas dans le total
+# TODO Verifier donc que dans mes stats j'ai le compte unique et non pas tous les replicons au final je dois avoir UNE ESPECE (ESCO par exemple) == COMPTER POUR 1 GENOME (les ESCO001.00001 et ESCO001.000073 = 1 = ESCO001)
+# TODO Pas sur de ça c'est absolument pas ce qu'il y a a faire pour les stats, qui nécéssite de garder tous les detecté même les identiques au vérifié, les stat se font sur les vérifié donc option n'en ai pas une.
+# TODO Donc faire deux fichier 1 avec doublon et l'autre sans doublons (sans doublon == pour IQTREE)
+
 args = parser.parse_args()
 
 if args.merge :
@@ -128,15 +133,15 @@ if args.merge :
 
 
 
-if not args.prefix :
-	PREFIX = os.path.join(os.path.abspath(args.reportFile),"extraction_{}".format(time.strftime("%d_%m_%y")))
+if not args.output :
+	OUTPUT = os.path.join(os.path.abspath(args.reportFile),"extraction_{}".format(time.strftime("%d_%m_%y")))
 else :
-	PREFIX = args.prefix
+	OUTPUT = args.output
 
-create_folder(PREFIX)
+create_folder(OUTPUT)
 
 # XXX Creation of an information folder for each sequence remove or file generate (as cutoff, ...)
-INFO=os.path.join(PREFIX,"info_folder")
+INFO=os.path.join(OUTPUT,"info_folder")
 create_folder(INFO)
 
 FASTA = args.seqData
@@ -161,10 +166,10 @@ info_file.write("# Species_name\tSystem_name\tSystem_number\tProteins\n")
 if args.veriFile :
 	veriFile, veriData = args.veriFile
 	info_file.write("## Verified systems\n")
-	PATH_FASTA_VERIFIED = os.path.join(PREFIX, "fasta_verified", "raw")
+	PATH_FASTA_VERIFIED = os.path.join(OUTPUT, "fasta_verified", "raw")
 	create_folder(PATH_FASTA_VERIFIED)
-	create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, veriFile, veriData)
-	PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_verified", "rename")
+	create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, veriFile, veriData, INFO)
+	PATH_FASTA_RENAME = os.path.join(OUTPUT, "fasta_verified", "rename")
 
 	# NOTE Pas besoin de récupérer le dictionnaire et la liste des systèmes verifiés car je ne veux pas faire de stats dessus. Et qu'ici je ne peux pas séparer les detectés des verifiés qui sont identiques.
 	rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_VERIFIED)
@@ -177,7 +182,7 @@ print("# Detected Fasta")
 print("#################\n")
 
 info_file.write("## Detected systems\n")
-PATH_FASTA_DETECTED = os.path.join(PREFIX, "fasta_detected", "raw")
+PATH_FASTA_DETECTED = os.path.join(OUTPUT, "fasta_detected", "raw")
 create_folder(PATH_FASTA_DETECTED)
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
@@ -185,25 +190,28 @@ list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/'
 if args.number_proc == 1  :
 	find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
 else :
-	find_in_fasta_multithreads(glob.glob(FASTA), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+	find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc))
 
 # XXX Deuxième liste de fichiers détectés après que tous les nom soit renomé
-PATH_FASTA_RENAME = os.path.join(PREFIX, "fasta_detected", "rename")
+PATH_FASTA_RENAME = os.path.join(OUTPUT, "fasta_detected", "rename")
 DICT_INFO_DETECTED, list_systems_detected = rename_name_gene(list_file_detected, PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_DETECTED)
 PATH_FASTA_DETECTED = PATH_FASTA_RENAME
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
 
 info_file.close()
 
+# XXX Creation de la tble de translation renomée.
+rename_seq_translation_table(INFO_folder)
+
 if args.concat :
 	# NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences non identique au verifiées.
-	PATH_FASTA_DETECTED_SELECTED = os.path.join(PREFIX, "fasta_detected", "selected_concatenation")
+	PATH_FASTA_DETECTED_SELECTED = os.path.join(OUTPUT, "fasta_detected", "selected_concatenation")
 	create_folder(PATH_FASTA_DETECTED_SELECTED)
 
 	if args.cutoff :
-		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated", "raw")
+		PATH_FASTA_CONCATENATED = os.path.join(OUTPUT, "fasta_concatenated", "raw")
 	else :
-		PATH_FASTA_CONCATENATED = os.path.join(PREFIX, "fasta_concatenated")
+		PATH_FASTA_CONCATENATED = os.path.join(OUTPUT, "fasta_concatenated")
 
 	create_folder(PATH_FASTA_CONCATENATED)
 	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED)
@@ -212,10 +220,10 @@ if args.concat :
 # XXX Deuxieme liste de fichiers concaténés ou detectés après cutoff
 if args.cutoff :
 	if args.concat :
-		PATH_FASTA_CONCATENATED_CUTOFF = os.path.join(PREFIX, "fasta_concatenated", "cut_off")
+		PATH_FASTA_CONCATENATED_CUTOFF = os.path.join(OUTPUT, "fasta_concatenated", "cut_off")
 		cut_seq_fasta_file(list_file_concatenated, PATH_FASTA_CONCATENATED_CUTOFF, INFO, file_cutoff=args.cutoff)
 	else :
-		PATH_FASTA_DETECTED_CUTOFF = os.path.join(PREFIX, "fasta_detected", "cut_off")
+		PATH_FASTA_DETECTED_CUTOFF = os.path.join(OUTPUT, "fasta_detected", "cut_off")
 		cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, INFO, file_cutoff=args.cutoff)
 
 # XXX Dernière étape les stats
@@ -235,7 +243,7 @@ if args.stats :
 		LIST_WANTED = np.unique(INFO_STATS[:,4]).tolist()
 		DICT_SPECIES_WANTED = DICT_SPECIES
 
-	PATH_TO_DATAFRAME = os.path.join(PREFIX,"statistics")
+	PATH_TO_DATAFRAME = os.path.join(OUTPUT,"statistics")
 	create_folder(os.path.join(PATH_TO_DATAFRAME, "xlsx"))
 	create_folder(os.path.join(PATH_TO_DATAFRAME, "tsv"))
 	create_folder(os.path.join(PATH_TO_DATAFRAME, "data_color"))
