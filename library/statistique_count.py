@@ -111,7 +111,8 @@ def count_all(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_DATAF
 			df_count_system.loc[("Summary_total","","",""),system_name] += 1
 
 			for protein_name in DICT_INFO[species_id][key_systems] :
-				df_count_system.loc[(kingdom,phylum,protein_function[protein_name],'Unique'),system_name] += 1
+				if DICT_INFO[species_id][key_systems][protein_name] != 0 :
+					df_count_system.loc[(kingdom,phylum,protein_function[protein_name],'Unique'),system_name] += 1
 				df_count_system.loc[(kingdom,phylum,protein_function[protein_name],'Total'),system_name] += DICT_INFO[species_id][key_systems][protein_name]
 
 	df_count_system.Total = df_count_system.sum(axis=1)

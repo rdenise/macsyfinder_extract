@@ -10,7 +10,6 @@ Dependencies :
    - Biopython 1.68
    - Matplotlib 1.5.3
    - Rpy2 2.8.3
-   - Seaborn 0.7.1
 
 Format function definition file
 -------------------------------
