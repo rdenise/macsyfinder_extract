@@ -6,10 +6,10 @@ Dependencies :
 --------------
 
 - Python 3.5 (The Python 2.7 version is no longer updated)
-   - Numpy 1.11.2
+   - Numpy 1.12
    - Biopython 1.68
-   - Matplotlib 1.5.3
-   - Rpy2 2.8.3
+   - Matplotlib 2.0.0
+   - Pandas 0.19.2
 
 Format function definition file
 -------------------------------

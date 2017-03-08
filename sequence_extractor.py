@@ -110,7 +110,7 @@ stat_option.add_argument("-wanted",'--phylum_wanted',
 							help="List of all the phylum that we want information about the number of systems found with one phylum by line. (default: All the phylum found)")
 
 
-# TODO Peut être entre tous les systèmes prendre celui qui a le plus de gènes ? et non pas le premier. Mais du coup fait faire plus de calculs. 
+# TODO Peut être entre tous les systèmes prendre celui qui a le plus de gènes ? et non pas le premier. Mais du coup fait faire plus de calculs.
 
 args = parser.parse_args()
 
@@ -153,22 +153,29 @@ DICT_INFO_DETECTED = {}
 
 # XXX List of all the function name with .fasta add at the end
 all_function = np.unique([function+".fasta" for function in PROTEIN_FUNCTION.values()]).tolist()
+# BUG Plus besoin non plus car j'ai plus besoin de robjects
 list_file = robjects.StrVector(all_function)
 
 # XXX Je crée le fichier ou je met mes systemes de mon analyse
 info_file = open(os.path.join(INFO,"systems_found.names"), "w")
+# BUG Enlevéer si nouvelle fonction en stats ?
 info_file.write("# Species_name\tSystem_name\tSystem_number\tProteins\n")
 
 # XXX Si j'ai l'option verifié mise en place je demande les deux options.
 if args.veriFile :
 	veriFile, veriData = args.veriFile
+    # BUG Pareil ici ?
 	info_file.write("## Verified systems\n")
 	PATH_FASTA_VERIFIED = os.path.join(OUTPUT, "fasta_verified", "raw")
 	create_folder(PATH_FASTA_VERIFIED)
-	create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, veriFile, veriData, INFO)
+	# BUG L'appel devient pour l'instant :
+	create_verified_fasta(os.path.join(PATH_FASTA_VERIFIED, all_function), PROTEIN_FUNCTION, veriFile, veriData, INFO)
+	#create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, veriFile, veriData, INFO)
+	# BUG Plus besoin de ça il faut que je renome dans la fonction précédente
 	PATH_FASTA_RENAME = os.path.join(OUTPUT, "fasta_verified", "rename")
 
 	# NOTE Pas besoin de récupérer le dictionnaire et la liste des systèmes verifiés car je ne veux pas faire de stats dessus. Et qu'ici je ne peux pas séparer les detectés des verifiés qui sont identiques.
+	# BUG Fonction a disparue donc plus besoin
 	rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_VERIFIED)
 	PATH_FASTA_VERIFIED = PATH_FASTA_RENAME
 
@@ -181,7 +188,7 @@ print("#################\n")
 info_file.write("## Detected systems\n")
 PATH_FASTA_DETECTED = os.path.join(OUTPUT, "fasta_detected", "raw")
 create_folder(PATH_FASTA_DETECTED)
-list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
+list_file_detected = os.path.join(PATH_FASTA_DETECTED, all_function)
 
 # XXX Je teste si je suis en multi_thread ou pas
 if args.number_proc == 1  :
@@ -191,6 +198,7 @@ else :
 
 # XXX Deuxième liste de fichiers détectés après que tous les nom soit renomé
 PATH_FASTA_RENAME = os.path.join(OUTPUT, "fasta_detected", "rename")
+# BUG car je n'ai plus rename donc je ne renvoie rien les informations sont maintenant retrouner par la fonction set_df_info_system()
 DICT_INFO_DETECTED, list_systems_detected = rename_name_gene(list_file_detected, PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_DETECTED)
 PATH_FASTA_DETECTED = PATH_FASTA_RENAME
 list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
@@ -198,6 +206,7 @@ list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/'
 info_file.close()
 
 # XXX Creation de la tble de translation renomée.
+# BUG Plus besoin les sequence sont bien nommé dès le début
 rename_seq_translation_table(INFO)
 
 if args.concat :
@@ -233,6 +242,8 @@ if args.stats :
 	PROTEIN_FUNCTION_ONLY = {"_".join(key.split("_")[1:]):value for key, value in PROTEIN_FUNCTION.items()}
 	INFO_STATS = np.genfromtxt(args.stats, dtype=str, delimiter="\t", comments="##")
 	DICT_SPECIES = {kingdom:np.unique(INFO_STATS[INFO_STATS[:,3] == kingdom,4]) for kingdom in np.unique(INFO_STATS[:,3]).tolist()}
+
+	# BUG Je vais avoir besoin d'utiliser la fonction set_df_info_system() pour avoir des info dont j'ai besoin dans les fonctions suivantes
 
 	if args.wanted :
 		DICT_SPECIES_WANTED, LIST_WANTED = create_dict_wanted(args.wanted)

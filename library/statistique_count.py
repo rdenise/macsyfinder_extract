@@ -24,10 +24,59 @@ from set_params import *
 ##########################################################################################
 ##########################################################################################
 ##
+##								Figure Style
+##
+##########################################################################################
+##########################################################################################
+
+sns.set_style("ticks")
+sns.set_context("talk")
+
+##########################################################################################
+##########################################################################################
+##
 ##								Functions
 ##
 ##########################################################################################
 ##########################################################################################
+
+def set_df_info_system(report_df, w_file, INFO_TAB) :
+
+	"""
+	Function that create a dataframe and set all the information about the systeme and write it in a file
+	"""
+
+	# NOTE FINIR DE LE METTRE EN  FONCTION ET FINIR AUSSI LA NOUVELLE extract_protein ET L'INTEGRATION DES NOUVEAUTES + DU MULTIPROCESS ACSYNCRO
+
+	value_counts_series = report_df.groupby("System_Id").Gene.value_counts()
+	info_tab = pd.read_table(INFO_TAB, index_col=0)
+
+	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_name","Replicon_name","System_name","System_number","Proteins", "Phylum", "Lineage"])
+	for my_index in df_info_system.index :
+		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
+
+		Replicon, System, Number = my_index.split("_")
+		if int(Number) == 1 :
+		    df_info_system.loc[my_index, "System_number"] = "."
+		else :
+		    df_info_system.loc[my_index, "System_number"] = Number
+
+		if System in ("Tcp", "R64", "Cof", "Bfp", "Lng"):
+		    System = "T4bP"
+
+		df_info_system.loc[my_index, "System_name"] = System
+		df_info_system.loc[my_index, "Replicon_name"] = Replicon
+		df_info_system.loc[my_index, "Species_name"] = ".".join(Replicon.split(".")[:-1])
+
+		df_info_system.loc[my_index, "Phylum"] = info_tab.loc[df_info_system.loc[my_index, "Species_name"], "Phylum"]
+		df_info_system.loc[my_index, "Lineage"] = info_tab.loc[df_info_system.loc[my_index, "Species_name"], "Lineage"]
+
+		df_info_system.to_csv(w_file, sep="\t", index=False)
+	return df_info_system
+
+##########################################################################################
+##########################################################################################
+
 
 def tuple_like_all(species_dict, protein_list):
 
@@ -242,7 +291,6 @@ def proportion_phylum(PATH_TO_FIGURE, df, LIST_SYSTEMS):
 	name_legend = np.array([i[1] for i in sub_df_for_plot.index])
 
 	# XXX Plot en lui même
-	fig = plt.figure()
 	plot = (sub_df_for_plot.loc[:,LIST_SYSTEMS]/df.xs("Summary_total", level="Kingdom").loc[:,LIST_SYSTEMS].ix[0]).T.plot(kind="bar", stacked=True, cmap='Paired', rot=0)
 
 	# XXX Mise en forme
@@ -259,9 +307,11 @@ def proportion_phylum(PATH_TO_FIGURE, df, LIST_SYSTEMS):
 	colors_dict = {info_legend[1][i]:info_legend[0][i][0].get_facecolor() for i in range(taille_infolegend)}
 	f = open(os.path.join(PATH_TO_FIGURE, ".color_dict.json"), 'w')
 	json.dump(colors_dict, f)
+	f.close()
 
 	# XXX Sauvegarde de la figure
 	plt.savefig(os.path.join(PATH_TO_FIGURE,"proportion_phylum.pdf"))
+	plt.close('all')
 
 	return
 
@@ -289,7 +339,6 @@ def proportion_systems(PATH_TO_FIGURE, df, w_file):
 	mini_tab.to_string(w_file)
 
 	# XXX Et le même en figure
-	fig = plt.figure()
 	ax = mini_tab.plot(kind='bar', rot=0)
 
 	# XXX Mise en forme
@@ -298,9 +347,9 @@ def proportion_systems(PATH_TO_FIGURE, df, w_file):
 	ax.set_xticklabels(['Bacteria', 'Archaea'])
 	plt.title("Percentage of studied system found in each kingdom clades studied")
 	plt.savefig(os.path.join(PATH_TO_FIGURE,"proportion_found_each_kingdom.pdf"))
+	plt.close('all')
 
 	# XXX Proportion générale
-	fig = plt.figure()
 	ax = (df.xs("Summary_total", level="Kingdom").iloc[:,:-1]/df.xs("Summary_total", level="Kingdom").Total.ix[0]).plot(kind='bar')
 
 	# XXX Mise en forme
@@ -309,6 +358,7 @@ def proportion_systems(PATH_TO_FIGURE, df, w_file):
 	ax.set_xticklabels("")
 	plt.title("Proportion of studied system found")
 	plt.savefig(os.path.join(PATH_TO_FIGURE,"proportion_found.pdf"))
+	plt.close('all')
 
 	return
 
@@ -334,10 +384,11 @@ def proportion_proteobacteria(PATH_TO_FIGURE, df):
 	df_figure_2.sum(axis=1)
 
 	# XXX Le plot avec les couleurs choisies
-	fig = plt.figure()
 	colors = [(0.65098041296005249, 0.80784314870834351, 0.89019608497619629, 1.0), (0.3997693305214246, 0.6478123867044262, 0.80273742044673246, 1.0)]
 	plot = df_figure_2.T.plot(kind="bar", stacked=True, color=colors, rot=0, legend=False)
+	sns.despine(offset=10, trim=True)
 	plt.savefig(os.path.join(PATH_TO_FIGURE,"numbers_proteobacteria_rest.pdf"))
+	plt.close('all')
 
 	return
 
@@ -446,7 +497,7 @@ def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, w_fi
 	my_file.write(style_df._repr_html_())
 	my_file.close()
 
-	# XXX La même en pdf mais ecriture mal lu par illustrator
+	# XXX La même en pdf mais ecriture mal lu par illustrator // Maintenant semble fonctionner, matplotlib est passé à sa version 2.0
 	html_df=HTML(string=style_df._repr_html_())
 	html_df.write_pdf(os.path.join(PATH_TO_HTLM,"dataframe_color.pdf"))
 
