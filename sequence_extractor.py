@@ -145,69 +145,33 @@ FASTA = args.seqData
 REPORT = args.reportFile
 
 PROTEIN_FUNCTION = read_protein_function(args.defFile)
-DICT_SYSTEMS = create_dict_system(PROTEIN_FUNCTION)
-
-# XXX Dictionnaire qui va recuperer les associations nom d'espèce : nom de systemes pour éviter les doublons
-DICT_INFO_VERIFIED = {}
-DICT_INFO_DETECTED = {}
 
 # XXX List of all the function name with .fasta add at the end
 all_function = np.unique([function+".fasta" for function in PROTEIN_FUNCTION.values()]).tolist()
-# BUG Plus besoin non plus car j'ai plus besoin de robjects
-list_file = robjects.StrVector(all_function)
-
-# XXX Je crée le fichier ou je met mes systemes de mon analyse
-info_file = open(os.path.join(INFO,"systems_found.names"), "w")
-# BUG Enlevéer si nouvelle fonction en stats ?
-info_file.write("# Species_name\tSystem_name\tSystem_number\tProteins\n")
 
 # XXX Si j'ai l'option verifié mise en place je demande les deux options.
 if args.veriFile :
 	veriFile, veriData = args.veriFile
-    # BUG Pareil ici ?
-	info_file.write("## Verified systems\n")
-	PATH_FASTA_VERIFIED = os.path.join(OUTPUT, "fasta_verified", "raw")
+	PATH_FASTA_VERIFIED = os.path.join(OUTPUT, "fasta_verified")
+	list_file_verified = [os.path.join(PATH_FASTA_VERIFIED, function) for function in all_function]
 	create_folder(PATH_FASTA_VERIFIED)
-	# BUG L'appel devient pour l'instant :
-	create_verified_fasta(os.path.join(PATH_FASTA_VERIFIED, all_function), PROTEIN_FUNCTION, veriFile, veriData, INFO)
-	#create_verified_fasta(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PROTEIN_FUNCTION, veriFile, veriData, INFO)
-	# BUG Plus besoin de ça il faut que je renome dans la fonction précédente
-	PATH_FASTA_RENAME = os.path.join(OUTPUT, "fasta_verified", "rename")
-
-	# NOTE Pas besoin de récupérer le dictionnaire et la liste des systèmes verifiés car je ne veux pas faire de stats dessus. Et qu'ici je ne peux pas séparer les detectés des verifiés qui sont identiques.
-	# BUG Fonction a disparue donc plus besoin
-	rename_name_gene(robjects.r['paste'](PATH_FASTA_VERIFIED, list_file, sep='/'), PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_VERIFIED)
-	PATH_FASTA_VERIFIED = PATH_FASTA_RENAME
-
+	report_df_verified = create_verified_fasta(list_file_verified, PROTEIN_FUNCTION, veriFile, veriData, INFO)
 
 # XXX Première liste de fichiers détectés
 print("\n#################")
 print("# Detected Fasta")
 print("#################\n")
 
-info_file.write("## Detected systems\n")
 PATH_FASTA_DETECTED = os.path.join(OUTPUT, "fasta_detected", "raw")
 create_folder(PATH_FASTA_DETECTED)
-list_file_detected = os.path.join(PATH_FASTA_DETECTED, all_function)
+list_file_detected = [os.path.join(PATH_FASTA_DETECTED, function) for function in all_function]
 
 # XXX Je teste si je suis en multi_thread ou pas
 if args.number_proc == 1  :
-	find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+	report_df_detected = find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
 else :
-	find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc))
+	report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc))
 
-# XXX Deuxième liste de fichiers détectés après que tous les nom soit renomé
-PATH_FASTA_RENAME = os.path.join(OUTPUT, "fasta_detected", "rename")
-# BUG car je n'ai plus rename donc je ne renvoie rien les informations sont maintenant retrouner par la fonction set_df_info_system()
-DICT_INFO_DETECTED, list_systems_detected = rename_name_gene(list_file_detected, PATH_FASTA_RENAME, info_file, DICT_SYSTEMS, DICT_INFO_DETECTED)
-PATH_FASTA_DETECTED = PATH_FASTA_RENAME
-list_file_detected = robjects.r['paste'](PATH_FASTA_DETECTED, list_file, sep='/')
-
-info_file.close()
-
-# XXX Creation de la tble de translation renomée.
-# BUG Plus besoin les sequence sont bien nommé dès le début
-rename_seq_translation_table(INFO)
 
 if args.concat :
 	# NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences non identique au verifiées.
@@ -220,8 +184,8 @@ if args.concat :
 		PATH_FASTA_CONCATENATED = os.path.join(OUTPUT, "fasta_concatenated")
 
 	create_folder(PATH_FASTA_CONCATENATED)
-	concatenate_detected_verified(list_file, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED)
-	list_file_concatenated = robjects.r['paste'](PATH_FASTA_CONCATENATED, list_file, sep='/')
+	concatenate_detected_verified(all_function, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED)
+	list_file_concatenated = [os.path.join(PATH_FASTA_CONCATENATED, function) for function in all_function]
 
 # XXX Deuxieme liste de fichiers concaténés ou detectés après cutoff
 if args.cutoff :
@@ -233,22 +197,41 @@ if args.cutoff :
 		cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, INFO, file_cutoff=args.cutoff)
 
 # XXX Dernière étape les stats
+
+# XXX Debug si j'ai enregister les df_report dans des fichiers séparés.
+report_df_verified = pd.read_table(os.path.join(INFO, "verified.reportlike"), comment="#")
+report_df_detected = pd.read_table(os.path.join(INFO, "detected.reportmodif"), comment="#")
+
 if args.stats :
 
 	print("\n#################")
 	print("# Count and Stats")
 	print("#################\n")
 
-	PROTEIN_FUNCTION_ONLY = {"_".join(key.split("_")[1:]):value for key, value in PROTEIN_FUNCTION.items()}
-	INFO_STATS = np.genfromtxt(args.stats, dtype=str, delimiter="\t", comments="##")
-	DICT_SPECIES = {kingdom:np.unique(INFO_STATS[INFO_STATS[:,3] == kingdom,4]) for kingdom in np.unique(INFO_STATS[:,3]).tolist()}
+	DICT_SYSTEMS = create_dict_system(PROTEIN_FUNCTION)
+
+	# XXX Je crée le fichier ou je met mes systemes de mon analyse
+	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
+	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
+
+	# XXX Pour les verifiés
+	info_file.write("## Verified systems\n")
+	df_info_verified = set_df_info_system(report_df_verified, info_file, args.stats, DICT_SYSTEMS)
+
+	# XXX Pour les detectés
+	info_file.write("## Detected systems\n")
+	df_info_detected = set_df_info_system(report_df_detected, info_file, args.stats, DICT_SYSTEMS)
+
+	info_file.close()
+
+	DICT_SPECIES = {kingdom:np.unique(df_info_detected.Phylum[df_info_detected.Kingdom == kingdom]) for kingdom in set(df_info_detected.Kingdom)}
 
 	# BUG Je vais avoir besoin d'utiliser la fonction set_df_info_system() pour avoir des info dont j'ai besoin dans les fonctions suivantes
 
 	if args.wanted :
 		DICT_SPECIES_WANTED, LIST_WANTED = create_dict_wanted(args.wanted)
 	else :
-		LIST_WANTED = np.unique(INFO_STATS[:,4]).tolist()
+		LIST_WANTED = np.unique(df_info_detected.Phylum).tolist()
 		DICT_SPECIES_WANTED = DICT_SPECIES
 
 	PATH_TO_DATAFRAME = os.path.join(OUTPUT,"statistics")
@@ -262,27 +245,28 @@ if args.stats :
 
 	print('Creating DataFrame ...')
 
+
 	# XXX dataframe avec les counts pour chaques types de protéines je pense pas que je l'utilise après donc pas la peine de récupéré le dataframe
 	# NOTE Ici pour les deux dataframes j'inclus les verifiés car ils font partis du DICT_INFO. Je pense que je vais enlever les verifiés car ils sont inutiles ici.
-	df_count = count_all(INFO_STATS, DICT_INFO_DETECTED, PROTEIN_FUNCTION_ONLY, list_systems_detected, PATH_TO_DATAFRAME, DICT_SPECIES)
+	df_count = count_all(df_info_detected, PROTEIN_FUNCTION, PATH_TO_DATAFRAME, DICT_SPECIES)
 
 	# XXX Dataframe avec le compte pour tous les systemes donc utile pour la suite des "stats"
-	df_systems = systems_count(INFO_STATS, DICT_INFO_DETECTED, PROTEIN_FUNCTION_ONLY, list_systems_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
+	df_systems = systems_count(df_info_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
 
 	print()
 	print('Figure in process ...')
 
 	# XXX premiere figure
-	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, list_systems_detected)
+	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, df_info_detected)
 
 	# XXX Deuxieme figure
 	proportion_systems(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, out_file)
 
 	# XXX Troisieme figure
-	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_systems)
+	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_info_detected, df_systems.columns)
 
 	# XXX Les dataframes en couleurs
-	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, INFO_STATS, out_file)
+	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, args.stats, out_file)
 
 
 	out_file.close()

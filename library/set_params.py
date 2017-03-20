@@ -162,9 +162,9 @@ def create_dict_system(PROTEIN_FUNCTION):
 	for keys in PROTEIN_FUNCTION :
 		system, *protein = keys.split("_")
 		if system in dict_system :
-			dict_system[system].append("_".join(protein))
+			dict_system[system].append(keys)
 		else :
-			dict_system[system] = ["_".join(protein)]
+			dict_system[system] = [keys]
 
 	return dict_system
 

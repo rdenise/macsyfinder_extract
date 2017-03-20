@@ -40,18 +40,29 @@ sns.set_context("talk")
 ##########################################################################################
 ##########################################################################################
 
-def set_df_info_system(report_df, w_file, INFO_TAB) :
+def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS) :
 
 	"""
 	Function that create a dataframe and set all the information about the systeme and write it in a file
+
+	:param report_file: report dataframe (or report like dataframe) that contain at least the column "System_Id" and "Gene"
+	:type: pandas.DataFrame
+	:param w_file: handle of the file we want to write (that will contain the information created by this function)
+	:type: open file
+	:param INFO_TAB: name of the INFO_TAB file that contain all the information about the phylum and lineage of each prokaryote of gembases
+	:type: str
+	:param DICT_SYSTEMS: The dictionnary that contains the name of all the systems in key and the list of all the protein of this systems in values
+	:type: dict
+	:return: a dataframe with the information about ["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
+	:rtype: pandas.Dataframe
 	"""
 
-	# NOTE FINIR DE LE METTRE EN  FONCTION ET FINIR AUSSI LA NOUVELLE extract_protein ET L'INTEGRATION DES NOUVEAUTES + DU MULTIPROCESS ACSYNCRO
+	# NOTE FINIR DE LE METTRE EN  FONCTION
 
 	value_counts_series = report_df.groupby("System_Id").Gene.value_counts()
-	info_tab = pd.read_table(INFO_TAB, index_col=0)
+	info_tab = pd.read_table(INFO_TAB, index_col=0, names=["Taxon_id", "Name", "Kingdom", "Phylum", "Lineage", "NC_ids"])
 
-	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_name","Replicon_name","System_name","System_number","Proteins", "Phylum", "Lineage"])
+	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
 	for my_index in df_info_system.index :
 		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
 
@@ -64,14 +75,24 @@ def set_df_info_system(report_df, w_file, INFO_TAB) :
 		if System in ("Tcp", "R64", "Cof", "Bfp", "Lng"):
 		    System = "T4bP"
 
+		if System.lower() not in ["generic", "generique", "t4bp"] :
+			protein_in_system = list(df_info_system.loc[my_index, "Proteins"].keys())
+			key_system = protein_in_system[0].split("_")[0]
+			theroric_protein_system = DICT_SYSTEMS[key_system]
+
+			proteins_to_add = set(theroric_protein_system) - set(protein_in_system)
+			df_info_system.loc[my_index, "Proteins"].update({key:0 for key in proteins_to_add})
+
+
 		df_info_system.loc[my_index, "System_name"] = System
-		df_info_system.loc[my_index, "Replicon_name"] = Replicon
-		df_info_system.loc[my_index, "Species_name"] = ".".join(Replicon.split(".")[:-1])
+		df_info_system.loc[my_index, "Replicon_Id"] = Replicon
+		df_info_system.loc[my_index, "Species_Id"] = ".".join(Replicon.split(".")[:-1])
 
-		df_info_system.loc[my_index, "Phylum"] = info_tab.loc[df_info_system.loc[my_index, "Species_name"], "Phylum"]
-		df_info_system.loc[my_index, "Lineage"] = info_tab.loc[df_info_system.loc[my_index, "Species_name"], "Lineage"]
+		df_info_system.loc[my_index, "Kingdom"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Kingdom"]
+		df_info_system.loc[my_index, "Phylum"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Phylum"]
+		df_info_system.loc[my_index, "Lineage"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Lineage"]
 
-		df_info_system.to_csv(w_file, sep="\t", index=False)
+	df_info_system.to_csv(w_file, sep="\t", index=False, header=False)
 	return df_info_system
 
 ##########################################################################################
@@ -110,22 +131,17 @@ def tuple_like_all(species_dict, protein_list):
 ##########################################################################################
 ##########################################################################################
 
-def count_all(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_DATAFRAME, speciesDict) :
+def count_all(df_info_system, protein_function, PATH_TO_DATAFRAME, speciesDict) :
 
 	"""
-	Function that will read the DICT_INFO and count all information about system, protein, species...
+	Function that will read the df_info_system and count all information about system, protein, species...
 	It will write a file with this information and return a dataframe.
-	It's a count by protein so I'll hav the number of ATPase in T2SS for Proteobacteria
+	It's a count by protein so I'll have the number of ATPase in T2SS for Proteobacteria
 
-	:param info_tab: the genfromtxt of a tabulate file with the information about the replicons
-	:type: numpy.ndarray
-	:param DICT_INFO: dictionnary that contains all the information about all the
-	systems found (create by rename_name_gene)
-	:type: str
+	:param df_info_system: the dataframe with all the information about ["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
+	:type: pandas.DataFrame
 	:param protein_function: dictionnary with the name of all the protein studied
 	:type: dict
-	:params LIST_SYSTEMS: name of all the systems of the analysis
-	:type: list of str
 	:param PATH_TO_DATAFRAME: absolute path to the results folder
 	:type: str
 	:param speciesDict: Dictionary that contain in key the kingdoms name and in value the list
@@ -135,34 +151,27 @@ def count_all(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_DATAF
 	:rtype: pandas.Dataframe
 	"""
 
+	LIST_SYSTEMS = np.unique(df_info_system.System_name).tolist()
 	proteinlist = set(protein_function.values())
-	number_of_line = (len(speciesDict["Bacteria"])+len(speciesDict["Archaea"]))*len(proteinlist)*2+(len(speciesDict["Bacteria"])+len(speciesDict["Archaea"]))+3
-
-	info_tab = {line[0]:line[1:] for line in info_tab}
 
 	miindex = tuple_like_all(speciesDict, proteinlist)
-	number_systems = len(LIST_SYSTEMS)+1
-	df_count_system = pd.DataFrame(np.zeros((number_of_line,number_systems), dtype=int), index=miindex, columns=LIST_SYSTEMS+['Total'])
+	df_count_system = pd.DataFrame(0, index=miindex, columns=LIST_SYSTEMS+['Total'])
 
 	list_seen=[]
 
-	for species_id in DICT_INFO :
-		for key_systems in DICT_INFO[species_id] :
-			system_name, number = key_systems.split("_")
-			kingdom = info_tab[species_id][2]
-			phylum = info_tab[species_id][3]
+	for index, species_line in df_info_system.iterrows() :
 
-			if phylum in ['Archaea','Bacteria'] :
-				phylum = 'Other'
+		if species_line.Phylum in ['Archaea','Bacteria'] :
+			species_line.loc["Phylum"] = 'Other'
 
-			df_count_system.loc[(kingdom,phylum,"Total_system",""),system_name] += 1
-			df_count_system.loc[(kingdom,"Total_system","",""),system_name] += 1
-			df_count_system.loc[("Summary_total","","",""),system_name] += 1
+		df_count_system.loc[(species_line.Kingdom,species_line.Phylum,"Total_system",""),species_line.System_name] += 1
+		df_count_system.loc[(species_line.Kingdom,"Total_system","",""),species_line.System_name] += 1
+		df_count_system.loc[("Summary_total","","",""),species_line.System_name] += 1
 
-			for protein_name in DICT_INFO[species_id][key_systems] :
-				if DICT_INFO[species_id][key_systems][protein_name] != 0 :
-					df_count_system.loc[(kingdom,phylum,protein_function[protein_name],'Unique'),system_name] += 1
-				df_count_system.loc[(kingdom,phylum,protein_function[protein_name],'Total'),system_name] += DICT_INFO[species_id][key_systems][protein_name]
+		for protein_name in species_line.Proteins :
+			if species_line.Proteins[protein_name] != 0 :
+				df_count_system.loc[(species_line.Kingdom,species_line.Phylum,protein_function[protein_name],'Unique'),species_line.System_name] += 1
+			df_count_system.loc[(species_line.Kingdom,species_line.Phylum,protein_function[protein_name],'Total'),species_line.System_name] += species_line.Proteins[protein_name]
 
 	df_count_system.Total = df_count_system.sum(axis=1)
 
@@ -205,22 +214,15 @@ def tuple_like_systems(species_dict):
 ##########################################################################################
 ##########################################################################################
 
-def systems_count(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
+def systems_count(df_info_system, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
 
 	"""
 	Function that will read the DICT_INFO and count all information about system, protein, species...
 	It will write a file with this information and return a dataframe.
 	It's a count by systems so I'll have the number of T2SS for Proteobacteria
 
-	:param info_tab: the genfromtxt of a tabulate file with the information about the replicons
-	:type: numpay.ndarray
-	:param DICT_INFO: dictionnary that contains all the information about all the
-	systems found (create by rename_name_gene)
-	:type: str
-	:param protein_function: dictionnary with the name of all the protein studied
-	:type: dict
-	:params LIST_SYSTEMS: name of all the systems of the analysis
-	:type: list of str
+	:param df_info_system: the dataframe with all the information about ["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
+	:type: pandas.DataFrame
 	:param PATH_TO_DATAFRAME: absolute path to the results folder
 	:type: str
 	:param list_wanted: list of all the phylum wanted
@@ -232,48 +234,33 @@ def systems_count(info_tab, DICT_INFO, protein_function, LIST_SYSTEMS, PATH_TO_D
 	:rtype: pandas.Dataframe
 	"""
 
-	number_of_line = len(list_wanted)+5   # IDEA Ici si je veux le rendre général le 5 c'est "nombre de kingdom*2+1"
-	proteinlist = protein_function.keys()
-
-	# NOTE Pas besoin de ces lignes ici car je n'ai pas de verifié normalement
-	#LIST_SYSTEMS.remove('T4bP')
-	#LIST_SYSTEMS.remove('Com')
-
-	info_tab = {line[0]:line[1:] for line in info_tab}
+	LIST_SYSTEMS = np.unique(df_info_system.System_name).tolist()
 
 	miindex = tuple_like_systems(speciesDict)
-	number_systems = len(LIST_SYSTEMS)
-	df_count_system = pd.DataFrame(np.zeros((number_of_line, number_systems), dtype=int), index=miindex, columns=LIST_SYSTEMS)
+	df_count_system = pd.DataFrame(0, index=miindex, columns=LIST_SYSTEMS)
 
-	list_seen=[]
+	# XXX on prend ici que le nombre d'espèce avec au moins 1 systemes (les doublons détectés pas comptés)
 
-	for species_id in DICT_INFO :
-		for key_systems in DICT_INFO[species_id] :
-			system_name, number = key_systems.split("_")
-			kingdom = info_tab[species_id][2]
+	for kingdom in speciesDict :
+		for phylum in speciesDict[kingdom] :
+			df_count_system.loc[(kingdom, phylum)] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts()
 
-			lineage = info_tab[species_id][-2]
+		df_count_system.loc[(kingdom,"Other")] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic")) & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
+		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic")) & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
 
-			phylum = "Other"
-
-			for line in lineage.split(";"):
-				if line in list_wanted :
-					phylum = line
-
-			df_count_system.loc[(kingdom,phylum),system_name] += 1
-			df_count_system.loc[(kingdom,"Total_system"),system_name] += 1
-			df_count_system.loc[("Summary_total",""),system_name] += 1
-
+	df_count_system.loc[("Summary_total","")] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic"))].System_name.value_counts()
+	df_count_system.fillna(0, inplace=True)
+	df_count_system = df_count_system.astype(int)
 
 	df_count_system.index.names = ["Kingdom", "Phylum"]
-	df_count_system.to_csv(os.path.join(PATH_TO_DATAFRAME,"tsv","data_frame_count_systems.tsv"), sep="\t", float_format="%.1f", index_label=False, encoding="utf-8" )
+	df_count_system.to_csv(os.path.join(PATH_TO_DATAFRAME,"tsv","data_frame_count_systems.tsv"), sep="\t", index_label=False, encoding="utf-8")
 	df_count_system.to_excel(os.path.join(PATH_TO_DATAFRAME,"xlsx","data_frame_count_systems.xlsx"), index_label=False)
 	return df_count_system
 
 ##########################################################################################
 ##########################################################################################
 
-def proportion_phylum(PATH_TO_FIGURE, df, LIST_SYSTEMS):
+def proportion_phylum(PATH_TO_FIGURE, df, report_df):
 
 	"""
 	Function that plot the proportion of each phylum in all the systems found
@@ -282,7 +269,7 @@ def proportion_phylum(PATH_TO_FIGURE, df, LIST_SYSTEMS):
 	:type: str
 	:param df: The dataframe with the counts with the detail of the phylogeny
 	:type: pandas.Dataframe
-	:param LIST_SYSTEMS: list with the name of all the species
+	:param LIST_SYSTEMS: list with the name of all the species of the analysis (ex : T2SS, T4P ...)
  	:type: list of str
 	:return: Nothing
 	"""
@@ -291,7 +278,7 @@ def proportion_phylum(PATH_TO_FIGURE, df, LIST_SYSTEMS):
 	name_legend = np.array([i[1] for i in sub_df_for_plot.index])
 
 	# XXX Plot en lui même
-	plot = (sub_df_for_plot.loc[:,LIST_SYSTEMS]/df.xs("Summary_total", level="Kingdom").loc[:,LIST_SYSTEMS].ix[0]).T.plot(kind="bar", stacked=True, cmap='Paired', rot=0)
+	plot = (sub_df_for_plot.loc[:,np.unique(report_df.System_name)]/df.xs("Summary_total", level="Kingdom").loc[:,np.unique(report_df.System_name)].ix[0]).T.plot(kind="bar", stacked=True, cmap='Paired', rot=0)
 
 	# XXX Mise en forme
 	plt.legend(name_legend,loc='center left', bbox_to_anchor=(1.0, 0.5))
@@ -302,12 +289,13 @@ def proportion_phylum(PATH_TO_FIGURE, df, LIST_SYSTEMS):
 	ax_phylum = plt.gca()
 
 	# XXX Sauvegarde du dictionnaire de couleurs pour une future utilisation qui peut être utilisé plus tard pour les couleurs
-	info_legend = ax_phylum.get_legend_handles_labels()
-	taille_infolegend =len(info_legend[1])
-	colors_dict = {info_legend[1][i]:info_legend[0][i][0].get_facecolor() for i in range(taille_infolegend)}
-	f = open(os.path.join(PATH_TO_FIGURE, ".color_dict.json"), 'w')
-	json.dump(colors_dict, f)
-	f.close()
+	# NOTE Je pense pas en avoir besoin
+	#info_legend = ax_phylum.get_legend_handles_labels()
+	#taille_infolegend =len(info_legend[1])
+	#colors_dict = {info_legend[1][i]:info_legend[0][i][0].get_facecolor() for i in range(taille_infolegend)}
+	#f = open(os.path.join(PATH_TO_FIGURE, ".color_dict.json"), 'w')
+	#json.dump(colors_dict, f)
+	#f.close()
 
 	# XXX Sauvegarde de la figure
 	plt.savefig(os.path.join(PATH_TO_FIGURE,"proportion_phylum.pdf"))
@@ -365,28 +353,40 @@ def proportion_systems(PATH_TO_FIGURE, df, w_file):
 ##########################################################################################
 ##########################################################################################
 
-def proportion_proteobacteria(PATH_TO_FIGURE, df):
+def proportion_proteobacteria(PATH_TO_FIGURE, df_found, LIST_SYSTEMS):
 
 	"""
 	Function that plot the proportion of each systems found
 
 	:param PATH_TO_FIGURE: The absolute path to the figure folder
 	:type: str
-	:param df: The dataframe with the counts with the detail of the phylogeny
+	:param df_found: The dataframe with the information about the  detected systems
 	:type: pandas.Dataframe
+	:param LIST_SYSTEMS: list of the name of all the systems of the analysis (ex : T2SS, T4P ...)
+	:type: list of str
 	:return: Nothing
 	"""
 
 	# XXX Creation du dataframe intermediare
-	df_figure_2 = pd.DataFrame(index=pd.MultiIndex.from_tuples([('Bacteria', 'Proteobacteria'),('Rest', '')]) ,columns=df.columns)
-	df_figure_2.loc['Bacteria', 'Proteobacteria'] = df.loc['Bacteria', 'Gammaproteobacteria'] + df.loc['Bacteria', 'Betaproteobacteria'] + df.loc['Bacteria', 'Alphaproteobacteria']
-	df_figure_2.loc['Rest', ''] = df.loc['Summary_total', ''] - df_figure_2.loc['Bacteria', 'Proteobacteria']
-	df_figure_2.sum(axis=1)
+	df_figure_2 = pd.DataFrame(0, index=['Proteobacteria (𝛼, 𝛽, 𝛾)','Rest'] ,columns=LIST_SYSTEMS)
+	df_figure_2.loc['Proteobacteria (𝛼, 𝛽, 𝛾)'] = df_found[(df_found.Lineage.str.contains("Gammaproteobacteria")) | (df_found.Lineage.str.contains("Alphaproteobacteria")) | (df_found.Lineage.str.contains("Betaproteobacteria"))].System_name.value_counts()
+	df_figure_2.loc['Rest'] = df_found[~((df_found.Lineage.str.contains("Gammaproteobacteria")) | (df_found.Lineage.str.contains("Alphaproteobacteria")) | (df_found.Lineage.str.contains("Betaproteobacteria")))].System_name.value_counts()
+	df_figure_2.fillna(0, inplace=True)
 
 	# XXX Le plot avec les couleurs choisies
 	colors = [(0.65098041296005249, 0.80784314870834351, 0.89019608497619629, 1.0), (0.3997693305214246, 0.6478123867044262, 0.80273742044673246, 1.0)]
 	plot = df_figure_2.T.plot(kind="bar", stacked=True, color=colors, rot=0, legend=False)
 	sns.despine(offset=10, trim=True)
+
+	# XXX Ajout des valeurs en haut du plot et on ne prend que les valeurs finale
+	index_true_patches = int(len(plot.patches)/2)
+	true_patches = plot.patches[index_true_patches:]
+	for p in true_patches:
+		x=p.get_bbox().get_points()[:,0]
+		y=p.get_bbox().get_points()[1,1]
+		plot.annotate('{}'.format(int(y)), (x.mean(), y),
+				ha='center', va='bottom')
+
 	plt.savefig(os.path.join(PATH_TO_FIGURE,"numbers_proteobacteria_rest.pdf"))
 	plt.close('all')
 
@@ -396,6 +396,7 @@ def proportion_proteobacteria(PATH_TO_FIGURE, df):
 ##########################################################################################
 
 def do_gradient(data, count_df, color='red'):
+
     """
     Create a gradient in the background in a Series or DataFrame
 	:param data: a Series from an apply of a DataFrame
@@ -412,39 +413,34 @@ def do_gradient(data, count_df, color='red'):
 ##########################################################################################
 ##########################################################################################
 
-def count_series(list_wanted, info_tab):
-	"""
-	Create a list with the count of each phylum wanted
+def count_series(list_wanted, INFO_TAB):
 
-	:param list_wanted: list of all the phylum wanted
-	:type: list of str
-	:param info_tab: the genfromtxt of a tabulate file with the information about the replicons
-	:type: numpay.ndarray
-	:return: a Series that contain the count of each phylum wanted
-	:rtype: pd.Series
-	"""
+    """
+    Create a list with the count of each phylum wanted
 
-	dict_position = {phylum:list_wanted.index(phylum) for phylum in list_wanted}
-	info_tab = {line[0]:line[1:] for line in info_tab}
+    :param list_wanted: list of all the phylum wanted
+    :type: list of str
+    :param INFO_TAB: the name of a tabulate file with the information about the replicons
+    :type: str
+    :return: a Series that contain the count of each phylum wanted
+    :rtype: pd.Series
+    """
 
-	len_wanted = len(list_wanted)
-	series_wanted = pd.Series(data=np.zeros(len_wanted), index=list_wanted)
+    info_tab = pd.read_table(INFO_TAB, index_col=0, names=["Taxon_id", "Name", "Kingdom", "Phylum", "Lineage", "NC_ids"],skiprows=1)
 
-	for species in info_tab :
-		lineage = info_tab[species][-2]
-		split_lineage = lineage.split(";")
-		for line in  split_lineage :
-			if line in list_wanted :
-				series_wanted.loc[line] += 1
-				break
+    series_wanted = pd.Series(0, index=list_wanted)
 
-	return series_wanted
+    for wanted in list_wanted :
+        series_wanted.loc[wanted] = info_tab[info_tab.Lineage.str.contains(wanted)].shape[0]
+
+
+    return series_wanted
 
 
 ##########################################################################################
 ##########################################################################################
 
-def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, w_file):
+def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_TAB, w_file):
 
 	"""
 	Function that plot the proportion of each systems found
@@ -458,14 +454,14 @@ def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, w_fi
 	:type: dict
 	:param list_wanted: list of all the phylum wanted
 	:type: list of str
-	:param INFO_STATS: the genfromtxt of a tabulate file with the information about the replicons
-	:type: numpay.ndarray
+	:param INFO_TAB: Name of the annotation table with the information about the database
+	:type: str
 	:param w_file: Open file where the textual information will be write
  	:type: file
 	:return: Nothing
 	"""
 
-	series_wanted = count_series(list_wanted, INFO_STATS)
+	series_wanted = count_series(list_wanted, INFO_TAB)
 	count_df=pd.DataFrame(series_wanted.values, index=pd.MultiIndex.from_tuples([(kingdom,phylum) for kingdom in ['Bacteria', 'Archaea'] for phylum in dict_wanted[kingdom] ]), columns=['Count'])
 
 	# XXX On met le tableau de compte dans le fichier texte ce qui peut être plus rapide pour trouver combien j'ai de génomes des espèces voulut dans ma database
@@ -478,9 +474,9 @@ def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, w_fi
 	# XXX On met un tableau recapitulatif en texte
 	w_file.write("\n\nPercentage Proteobacteria (𝛼, 𝛽, 𝛾) versus other\n")
 	w_file.write("------------------------------------------------\n\n")
-	mini_tab = pd.DataFrame(np.zeros(2), index=['Proteobacteria','Rest'] ,columns=["Count"])
-	mini_tab.loc['Proteobacteria'] = count_df.loc['Bacteria', 'Gammaproteobacteria'] + count_df.loc['Bacteria', 'Betaproteobacteria'] + count_df.loc['Bacteria', 'Alphaproteobacteria']
-	mini_tab.loc['Rest'] = count_df.sum() - mini_tab.loc['Proteobacteria']
+	mini_tab = pd.DataFrame(0, index=['Proteobacteria (𝛼, 𝛽, 𝛾)','Rest'] ,columns=["Count"])
+	mini_tab.loc['Proteobacteria (𝛼, 𝛽, 𝛾)'] = count_df.loc['Bacteria', 'Gammaproteobacteria'] + count_df.loc['Bacteria', 'Betaproteobacteria'] + count_df.loc['Bacteria', 'Alphaproteobacteria']
+	mini_tab.loc['Rest'] = count_df.sum() - mini_tab.loc['Proteobacteria (𝛼, 𝛽, 𝛾)']
 	mini_tab.T.to_string(w_file)
 
 	count_df.index.names = ["Kingdom", "Phylum"]
@@ -489,7 +485,7 @@ def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_STATS, w_fi
 
 	maxi = max([len(n) for n in drop_df.columns])
 
-	drop_df_rename = drop_df.rename(columns=lambda x: x+"_"*(maxi-len(x)))
+	drop_df_rename = drop_df.rename(columns=lambda x: "{:_^{number}}".format(x, number=maxi))
 	style_df = drop_df_rename.style.apply(do_gradient, args=(count_df,))
 
 	# XXX Ecriture de la dataframe en HTML
