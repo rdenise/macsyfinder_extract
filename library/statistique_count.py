@@ -40,7 +40,7 @@ sns.set_context("talk")
 ##########################################################################################
 ##########################################################################################
 
-def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS) :
+def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 
 	"""
 	Function that create a dataframe and set all the information about the systeme and write it in a file
@@ -62,7 +62,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS) :
 	value_counts_series = report_df.groupby("System_Id").Gene.value_counts()
 	info_tab = pd.read_table(INFO_TAB, index_col=0, names=["Taxon_id", "Name", "Kingdom", "Phylum", "Lineage", "NC_ids"])
 
-	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
+	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_Id","System_name", "System_status", "System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
 	for my_index in df_info_system.index :
 		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
 
@@ -92,6 +92,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS) :
 		df_info_system.loc[my_index, "Phylum"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Phylum"]
 		df_info_system.loc[my_index, "Lineage"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Lineage"]
 
+	df_info_system["System_status"] = status
 	df_info_system.to_csv(w_file, sep="\t", index=False, header=False)
 	return df_info_system
 

@@ -86,14 +86,14 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 
 	# XXX Je lis le fichier report et je lui donne le bon nom de header car certain fichier ne l'ont pas ou plus
 	names_dataframe=['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
-	report_table = pd.read_table("/Users/rdenise/Documents/These/Analyses/Analysis_macsyfinder/24_02_17/merge_macsyfinder.report", names=names_dataframe, dtype="str", comment="#")
-
+	report_table = pd.read_table(fileReport, names=names_dataframe, dtype="str", comment="#")
+	
 	# XXX Je fais un sous dataframe qui contient la liste de toutes les lignes que je ne veux pas et je l'écris dans un fichier
 	report_table[~report_table.Gene.isin(PROTEIN_FUNCTION)].reset_index(drop=True).to_csv(os.path.join(INFO, "remove_seq.report"), sep="\t", index=False, header=False)
 	number_remove_protein = report_table[~report_table.Gene.isin(PROTEIN_FUNCTION)].shape[0]
 	print("There are {} proteins remove during this operation because they are not in the dictionnary".format(number_remove_protein))
 
-	# XXX Avec ceux que je veux, jecrée une première fois la colonne avec les nouveaux nom
+	# XXX Avec ceux que je veux, je crée une première fois la colonne avec les nouveaux noms
 	new_report_table=report_table[report_table.Gene.isin(PROTEIN_FUNCTION)].reset_index(drop=True)
 
 	# NOTE New name : AAAAKKK.B.LLLLL[_numero de systeme si deux systemes trouvés][_Num(nombre de fois nom trouvé)]_nomSysteme_D_nomProteine (for 2016 gembase format)
@@ -289,7 +289,7 @@ def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEI
 	print("# File wrote")
 	print("#################\n")
 
-	new_report_table.to_csv(os.path.join(INFO, "detected.reportmodif"), sep="\t", index=False)
+	new_report_table.to_csv(os.path.join(INFO, "report_modif","detected.report"), sep="\t", index=False)
 	return new_report_table
 
 ##########################################################################################
@@ -411,7 +411,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 	# XXX On ferme le fichier de translation_table
 	w_file.close()
-	report_like.to_csv(os.path.join(INFO, "verified.reportlike"),sep="\t", index=False)
+	report_like.to_csv(os.path.join(INFO, "report_modif", "verified.report"),sep="\t", index=False)
 	return report_like
 
 ##########################################################################################
@@ -677,7 +677,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 			progression += 1
 
 			id_seq=seq.id.split("_")
-			id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
+			id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")+1]))
 
 			if id_seq in dict_remove :
 				continue
@@ -686,7 +686,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 				index=list_seq_verified.index(seq.seq)
 
 				id_seq_verif = list_id_verified[index].split("_")
-				id_seq_verif = re.sub("Num[0-9]_", "", "_".join(id_seq_verif[:id_seq_verif.index("V")]))
+				id_seq_verif = re.sub("Num[0-9]_", "", "_".join(id_seq_verif[:id_seq_verif.index("V")+1]))
 
 				# NOTE dans le dictionnaire je met le système vérifié en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisième
 				dict_remove[id_seq]=[id_seq_verif,[], seq.id]
@@ -733,7 +733,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 					progression += 1
 
 					id_seq=seq.id.split("_")
-					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")]))
+					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")+1]))
 
 					if id_seq in dict_remove :
 						dict_remove[id_seq][1].append(seq)

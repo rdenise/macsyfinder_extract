@@ -45,12 +45,10 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
 
 general_option = parser.add_argument_group(title = "General input dataset options")
 general_option.add_argument("-s",'--seqdata',
- 							required=True,
 							metavar="<file(s)>",
 							dest="seqData",
 							help="File with all the fasta sequences used for macsyfinder analysis. If you want to multiprocessing put the name of the folder split by species")
 general_option.add_argument("-r",'--reportfile',
- 							required=True,
 							metavar="<file>",
 							dest="reportFile",
 							help="Report file from the macsyfinder analysis")
@@ -108,6 +106,10 @@ stat_option.add_argument("-wanted",'--phylum_wanted',
 							dest="wanted",
 							default=None,
 							help="List of all the phylum that we want information about the number of systems found with one phylum by line. (default: All the phylum found)")
+stat_option.add_argument("-so",'--stats_only',
+							dest="stats_only",
+							action='store_true',
+							help="Remove all the steps of searching through database. [ONLY available if the previous analysis is done in the same folder]")
 
 
 # TODO Peut être entre tous les systèmes prendre celui qui a le plus de gènes ? et non pas le premier. Mais du coup fait faire plus de calculs.
@@ -140,9 +142,17 @@ create_folder(OUTPUT)
 # XXX Creation of an information folder for each sequence remove or file generate (as cutoff, ...)
 INFO=os.path.join(OUTPUT,"info_folder")
 create_folder(INFO)
+create_folder(os.path.join(INFO, "report_modif"))
 
-FASTA = args.seqData
-REPORT = args.reportFile
+if args.stats_only :
+	if os.path.isfile(os.path.join(INFO, "report_modif" "detected.report")) :
+		sys.exit("You need to specify the folder of a previous analysis with the option '-o' [PATH/TO/PREVIOUS/ANALYSIS]")
+else :
+	if args.seqData and args.reportFile :
+		FASTA = args.seqData
+		REPORT = args.reportFile
+	else :
+		sys.exit("sequence_extractor.py: error: the following arguments are required: -s/--seqdata, -r/--reportfile, -d/--defFile")
 
 PROTEIN_FUNCTION = read_protein_function(args.defFile)
 
@@ -157,20 +167,21 @@ if args.veriFile :
 	create_folder(PATH_FASTA_VERIFIED)
 	report_df_verified = create_verified_fasta(list_file_verified, PROTEIN_FUNCTION, veriFile, veriData, INFO)
 
-# XXX Première liste de fichiers détectés
-print("\n#################")
-print("# Detected Fasta")
-print("#################\n")
+if not args.stats_only :
+	# XXX Première liste de fichiers détectés
+	print("\n#################")
+	print("# Detected Fasta")
+	print("#################\n")
 
-PATH_FASTA_DETECTED = os.path.join(OUTPUT, "fasta_detected", "raw")
-create_folder(PATH_FASTA_DETECTED)
-list_file_detected = [os.path.join(PATH_FASTA_DETECTED, function) for function in all_function]
+	PATH_FASTA_DETECTED = os.path.join(OUTPUT, "fasta_detected", "raw")
+	create_folder(PATH_FASTA_DETECTED)
+	list_file_detected = [os.path.join(PATH_FASTA_DETECTED, function) for function in all_function]
 
-# XXX Je teste si je suis en multi_thread ou pas
-if args.number_proc == 1  :
-	report_df_detected = find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
-else :
-	report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc))
+	# XXX Je teste si je suis en multi_thread ou pas
+	if args.number_proc == 1  :
+		report_df_detected = find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+	else :
+		report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc))
 
 
 if args.concat :
@@ -198,9 +209,11 @@ if args.cutoff :
 
 # XXX Dernière étape les stats
 
-# XXX Debug si j'ai enregister les df_report dans des fichiers séparés.
-report_df_verified = pd.read_table(os.path.join(INFO, "verified.reportlike"), comment="#")
-report_df_detected = pd.read_table(os.path.join(INFO, "detected.reportmodif"), comment="#")
+if args.stats_only :
+	# XXX Debug si j'ai enregister les df_report dans des fichiers séparés.
+	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
+		report_df_verified = pd.read_table(os.path.join(INFO, "report_modif", "verified.report"), comment="#")
+	report_df_detected = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"), comment="#")
 
 if args.stats :
 
@@ -214,13 +227,14 @@ if args.stats :
 	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
 	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
 
-	# XXX Pour les verifiés
-	info_file.write("## Verified systems\n")
-	df_info_verified = set_df_info_system(report_df_verified, info_file, args.stats, DICT_SYSTEMS)
+	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
+		# XXX Pour les verifiés
+		info_file.write("## Verified systems\n")
+		df_info_verified = set_df_info_system(report_df_verified, info_file, args.stats, DICT_SYSTEMS, "V")
 
 	# XXX Pour les detectés
 	info_file.write("## Detected systems\n")
-	df_info_detected = set_df_info_system(report_df_detected, info_file, args.stats, DICT_SYSTEMS)
+	df_info_detected = set_df_info_system(report_df_detected, info_file, args.stats, DICT_SYSTEMS, "D")
 
 	info_file.close()
 
