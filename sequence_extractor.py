@@ -9,6 +9,7 @@ from set_params import *
 from fasta_creation import *
 from merge_generic_all import *
 from statistique_count import *
+from modification_report import *
 
 ##########################################################################################
 ##########################################################################################
@@ -146,7 +147,7 @@ create_folder(os.path.join(INFO, "report_modif"))
 
 if args.stats_only :
 	if os.path.isfile(os.path.join(INFO, "report_modif" "detected.report")) :
-		sys.exit("You need to specify the folder of a previous analysis with the option '-o' [PATH/TO/PREVIOUS/ANALYSIS]")
+		sys.exit("You need to specify the folder of a previous analysis with the option '-o' [PATH/TO/PREVIOUS/ANALYSIS] and the report file -r/--reportfile [REPORTFILE]")
 else :
 	if args.seqData and args.reportFile :
 		FASTA = args.seqData
@@ -237,6 +238,17 @@ if args.stats :
 	df_info_detected = set_df_info_system(report_df_detected, info_file, args.stats, DICT_SYSTEMS, "D")
 
 	info_file.close()
+
+	# Creation of the modified report with information about the if the gene is in tandem, loner, multi copy, the kingdom of the species, the phylum...
+    if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
+        merge_detected_verified_report(os.path.join(INFO, "report_modif", "verified.report"), REPORT, os.path.join(INFO, "report_modif", "detected.report"), os.path.join(INFO,"systems_found.names"), pd.read_table(args.stats, index_col=0), PROTEIN_FUNCTION, os.path.join(INFO, "report_modif"))
+	else :
+		names_dataframe = ['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
+		REPORT_df = pd.read_table(REPORT, names=names_dataframe)
+		REPORT_df_modif = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"))
+		distance_max = {"T2SS":5, "Tad":5, "T4P":5, "Com":10, "Archaellum":10, "generic":5}
+
+		fill_reportdf_detected(REPORT_df, PROTEIN_FUNCTION, REPORT_df_modif, pd.read_table(args.stats, index_col=0), os.path.join(INFO, "report_modif"), distance_max, names_dataframe)
 
 	DICT_SPECIES = {kingdom:np.unique(df_info_detected.Phylum[df_info_detected.Kingdom == kingdom]) for kingdom in set(df_info_detected.Kingdom)}
 

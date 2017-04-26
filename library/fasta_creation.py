@@ -87,7 +87,7 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 	# XXX Je lis le fichier report et je lui donne le bon nom de header car certain fichier ne l'ont pas ou plus
 	names_dataframe=['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
 	report_table = pd.read_table(fileReport, names=names_dataframe, dtype="str", comment="#")
-	
+
 	# XXX Je fais un sous dataframe qui contient la liste de toutes les lignes que je ne veux pas et je l'écris dans un fichier
 	report_table[~report_table.Gene.isin(PROTEIN_FUNCTION)].reset_index(drop=True).to_csv(os.path.join(INFO, "remove_seq.report"), sep="\t", index=False, header=False)
 	number_remove_protein = report_table[~report_table.Gene.isin(PROTEIN_FUNCTION)].shape[0]
@@ -331,6 +331,14 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 	info_extract = pd.read_table(info_dat, index_col=0, names=["Gene","System","SystID","Family","Note","Note2","NewName"], comment="#")
 
+	# XXX Ce fichier est juste là car j'ai un soucis de plus d'un système par systèmes validés
+	problem = False
+	if os.path.exists("/Users/rdenise/Documents/de_sophie_a_remi/pour_remi/experiment_validated_systems/verifed_duplicata.txt") :
+		df_translate = pd.read_table("/Users/rdenise/Documents/de_sophie_a_remi/pour_remi/experiment_validated_systems/verifed_duplicata.txt", index_col=0)
+		problem = True
+	else :
+		print("There is only one system by replicon")
+
 	progression=1
 
 	seqiter = SeqIO.parse(data_fasta, "fasta")
@@ -343,6 +351,12 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 			# IDEA pour faire un truc général je pourrais par exemple crée la liste à partir du fichier de definition de protein_function.def
 
+			tmp_replicon = info_extract.loc[seq.id, "NewName"].split("_")[0]
+			num_tmp = 1
+			if problem and info_extract.loc[seq.id, "SystID"] in list(df_translate.index) and df_translate.loc[info_extract.loc[seq.id, "SystID"], "Num"] == 2:
+				tmp_replicon = "{}_{}".format(tmp_replicon, 2)
+				num_tmp = 2
+
 			if info_extract.loc[seq.id, "Gene"].split("_")[0] in ['T2SS','T4P', 'Tad', "Com"]:
 				if info_extract.loc[seq.id, "Gene"] in PROTEIN_FUNCTION :
 
@@ -350,11 +364,12 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 					writing_file = re.search("[a-zA-Z0-9/_]+{}\.fasta".format(PROTEIN_FUNCTION[info_extract.loc[seq.id, "Gene"]]), "\t".join(listOfFile)).group(0)
 
-					NewName = "{}_{}_V_{}".format(info_extract.loc[seq.id, "NewName"].split("_")[0], info_extract.loc[seq.id, "SystID"].split("_")[-1], "_".join(info_extract.loc[seq.id, "Gene"].split("_")[1:]))
+
+					NewName = "{}_{}_V_{}".format(tmp_replicon, info_extract.loc[seq.id, "SystID"].split("_")[-1], "_".join(info_extract.loc[seq.id, "Gene"].split("_")[1:]))
 
 					if NewName in dict_count :
 						dict_count[NewName] += 1
-						NewName = "{}_Num{}_{}_V_{}".format(info_extract.loc[seq.id, "NewName"].split("_")[0], dict_count[NewName], info_extract.loc[seq.id, "SystID"].split("_")[-1], "_".join(info_extract.loc[seq.id, "Gene"].split("_")[1:]))
+						NewName = "{}_Num{}_{}_V_{}".format(tmp_replicon, dict_count[NewName], info_extract.loc[seq.id, "SystID"].split("_")[-1], "_".join(info_extract.loc[seq.id, "Gene"].split("_")[1:]))
 					else :
 						dict_count[NewName] = 1
 
@@ -376,11 +391,11 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 				if gene_tmp in PROTEIN_FUNCTION :
 					writing_file = re.search('[/a-zA-Z0-9_]+{}\.fasta'.format(PROTEIN_FUNCTION[gene_tmp]), "\t".join(listOfFile)).group(0)
 
-					NewName = "{}_{}_V_{}".format(info_extract.loc[seq.id, "NewName"].split("_")[0], info_extract.loc[seq.id, "System"].split("_")[-1], info_extract.loc[seq.id, "Gene"])
+					NewName = "{}_{}_V_{}".format(tmp_replicon, info_extract.loc[seq.id, "System"].split("_")[-1], info_extract.loc[seq.id, "Gene"])
 
 					if NewName in dict_count :
 						dict_count[NewName] += 1
-						NewName = "{}_Num{}_{}_V_{}".format(info_extract.loc[seq.id, "NewName"].split("_")[0], dict_count[NewName], info_extract.loc[seq.id, "System"].split("_")[-1], info_extract.loc[seq.id, "Gene"])
+						NewName = "{}_Num{}_{}_V_{}".format(tmp_replicon, dict_count[NewName], info_extract.loc[seq.id, "System"].split("_")[-1], info_extract.loc[seq.id, "Gene"])
 					else :
 						dict_count[NewName] = 1
 
@@ -397,7 +412,8 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 			NewName_split = NewName.split("_")
 			index_V = NewName_split.index("V")
-			report_like.loc[-1, "System_Id"] = "{}_{}_{}".format(NewName_split[0], NewName_split[index_V-1], 1)
+			report_like.loc[-1, "NewName"] = NewName
+			report_like.loc[-1, "System_Id"] = "{}_{}_{}".format(NewName_split[0], NewName_split[index_V-1], num_tmp)
 			report_like.loc[-1, "Gene"] = gene_tmp
 			report_like.index = report_like.index+1
 

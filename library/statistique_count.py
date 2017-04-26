@@ -57,7 +57,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 	:rtype: pandas.Dataframe
 	"""
 
-	# NOTE FINIR DE LE METTRE EN  FONCTION
+	# NOTE FINIR DE LE METTRE EN  FONCTION done je pense
 
 	value_counts_series = report_df.groupby("System_Id").Gene.value_counts()
 	info_tab = pd.read_table(INFO_TAB, index_col=0, names=["Taxon_id", "Name", "Kingdom", "Phylum", "Lineage", "NC_ids"])
