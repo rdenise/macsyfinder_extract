@@ -10,6 +10,7 @@
 
 import os
 import pandas as pd
+import numpy as np
 
 ##########################################################################################
 ##########################################################################################
@@ -18,6 +19,27 @@ import pandas as pd
 ##
 ##########################################################################################
 ##########################################################################################
+
+def read_systems_found(systems_found_file):
+
+    """
+    Read .names of macsyfinder_extract and created a dataframe with the rigth type on each columns
+
+    :param systems_found_file: Name of the macsyfinder_extract systems_found.names file
+    :type: str
+    :return: the dataframe completed
+    :rtype: pandas.Dataframe
+    """
+
+    names_dataframe=["Species_Id","Replicon_Id","System_name","System_status","System_number","Proteins","Kingdom","Phylum","Lineage"]
+    summary_df = pd.read_table(systems_found_file, names=names_dataframe, comment="#")
+    summary_df.ix[:,5]=summary_df.ix[:,5].apply(eval)
+
+    return summary_df
+
+##########################################################################################
+##########################################################################################
+
 
 def dict_tandem(report_df) :
 
@@ -155,9 +177,9 @@ def fill_reportdf_detected(report_df, protein_wanted, report_df_modif, info_tab,
     :rtype: pandas.DataFrame
     """
 
-    print("######################")
-    print("Create report detected")
-    print("######################")
+    print("-----------------------")
+    print("|Create report detected")
+    print("-----------------------")
 
     # adding information about the cluster
     report_df['Tandem'] = dict_tandem(report_df)
@@ -184,10 +206,14 @@ def fill_reportdf_detected(report_df, protein_wanted, report_df_modif, info_tab,
     #set the sequence with the max score
     sub_report["Max_Score"] = "No"
     sub_report.loc[sub_report.groupby(["System_Id", "Gene"])["Score"].idxmax().values,"Max_Score"] = "Yes"
+    sub_report["Min_Score"] = "No"
+    sub_report.loc[sub_report.groupby(["System_Id", "Gene"])["Score"].idxmin().values,"Min_Score"] = "Yes"
 
     #set the sequence with the min ievalue
     sub_report["Min_ievalue"] = "No"
     sub_report.loc[sub_report.groupby(["System_Id", "Gene"])["i-evalue"].idxmin().values,"Min_ievalue"] = "Yes"
+    sub_report["Max_ievalue"] = "No"
+    sub_report.loc[sub_report.groupby(["System_Id", "Gene"])["i-evalue"].idxmax().values,"Max_ievalue"] = "Yes"
 
     if sub_report.loc[sub_report.Max_Score != sub_report.Min_ievalue].shape[0] == 2 :
         sub_report.loc[sub_report.Max_Score != sub_report.Min_ievalue, "Min_ievalue"] = "Yes"
@@ -202,6 +228,10 @@ def fill_reportdf_detected(report_df, protein_wanted, report_df_modif, info_tab,
 
     #sub_report.to_excel(os.path.join(folder, "report_modif_loner_tandem_detected.xlsx"),index=False)
     sub_report.to_csv(os.path.join(folder, "detected.report"),index=False, sep="\t")
+
+    print()
+    print("Done!")
+    print()
 
     return sub_report
 
@@ -224,9 +254,9 @@ def fill_reportdf_verified(report_df_verified, df_found, folder):
     :rtype: pandas.DataFrame
     """
 
-    print("######################")
-    print("Create report verified")
-    print("######################")
+    print("-----------------------")
+    print("|Create report verified")
+    print("-----------------------")
 
     # On met le nom du replicon
     report_df_verified["Replicon_Id"] = report_df_verified.apply(lambda x : x.System_Id.split("_")[0], axis=1)
@@ -257,8 +287,12 @@ def fill_reportdf_verified(report_df_verified, df_found, folder):
     report_df_verified = new_report_df_verified.reset_index()[['NewName', 'Replicon_name', 'Gene', 'Reference_system', 'Predicted_system', "System_Id", "System_status","Multi_copy", 'Kingdom', 'Phylum']].sort_values(['System_Id']).reset_index(drop=True)
 
 
-    #report_df_verified.to_excel(os.path.join(folder, "report_modif_verifed.xlsx"),index=False)
-    report_df_verified.to_csv(os.path.join(folder, "verifed.report"),index=False, sep="\t")
+    #report_df_verified.to_excel(os.path.join(folder, "report_modif_verified.xlsx"),index=False)
+    report_df_verified.to_csv(os.path.join(folder, "verified.report"),index=False, sep="\t")
+
+    print()
+    print("Done!")
+    print()
 
     return report_df_verified
 
@@ -266,7 +300,7 @@ def fill_reportdf_verified(report_df_verified, df_found, folder):
 ##########################################################################################
 
 
-def merge_detected_verified_report(report_file_verified, report_file_detected, report_detected_modif, file_found, info_tab, protein_def, info_folder) :
+def merge_detected_verified_report(report_file_verified, report_file_detected, report_detected_modif, file_found, info_tab, protein_def, info_folder, DISTANCE_DICT) :
 
     """
     Function that set new columns in the report dataframe : Tandem, Loner, Loner unique,
@@ -286,6 +320,8 @@ def merge_detected_verified_report(report_file_verified, report_file_detected, r
     :type: dict
     :param info_folder: The name of the folder where the information will be write
     :type: str
+    :param DISTANCE_DICT: the dictionnary with the maximal distance inside systeme
+    :type: dict
     :return: a dataframe with the two reports modified merge
     :rtype: pandas.DataFrame
     """
@@ -302,19 +338,19 @@ def merge_detected_verified_report(report_file_verified, report_file_detected, r
     #protein_wanted = [item for sublist in list(dict_protein.values()) for item in sublist]
 
     # On donne les distances maximums pour chaque système
-    distance_max = {"T2SS":5, "Tad":5, "T4P":5, "Com":10, "Archaellum":10, "generic":5}
+    distance_max = DISTANCE_DICT
 
-    report_df_detected = fill_reportdf_detected(report_df, protein_wanted, report_df_modif, info_tab, info_folder, distance_max,names_dataframe)
+    report_df_detected = fill_reportdf_detected(report_df, protein_def, report_df_modif, info_tab, info_folder, distance_max,names_dataframe)
 
     #Maintenant les verfiés
     report_df_verified = pd.read_table(report_file_verified)
     df_found = read_systems_found(file_found)
 
-    report_df_verified = fill_reportdf_verified(report_df_verified, df_found, folder)
+    report_df_verified = fill_reportdf_verified(report_df_verified, df_found, info_folder)
 
-    print("####################")
-    print("Create report merged")
-    print("####################")
+    print("----------------------")
+    print("|Create report merged")
+    print("----------------------")
 
     # On merge les deux report et on remet les colonnes dans le bon ordre
     report_df_merge = report_df_verified.append(report_df_detected, ignore_index=True)
@@ -323,5 +359,9 @@ def merge_detected_verified_report(report_file_verified, report_file_detected, r
 
     #report_df_merge.to_excel(os.path.join(info_folder,"report_modif_annotation_full.xlsx"),index=False, na_rep=".")
     report_df_merge.to_csv(os.path.join(info_folder,"report_modif_annotation_full.report"),index=False, sep="\t",na_rep=".")
+
+    print()
+    print("Done!")
+    print()
 
     return report_df_merge

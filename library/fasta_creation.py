@@ -44,10 +44,8 @@ def set_name(row, dict_count) :
 	:rtype: str
 	"""
 
-	if (int(row.System_Id.split('_')[-1]) > 1) :
-	    NewNameTmp = "{}_{}".format(row.Replicon_name, row.System_Id.split('_')[-1])
-	else :
-	    NewNameTmp =  row.Replicon_name
+	#On met ici le numero du system après le replicon name
+	NewNameTmp = "{}_{}".format(row.Replicon_name, row.System_Id.split('_')[-1])
 
 	NewName = "{}_{}_D_{}".format(NewNameTmp, row.Predicted_system, "_".join(row.Gene.split('_')[1:]))
 
@@ -58,6 +56,7 @@ def set_name(row, dict_count) :
 		dict_count[NewName] = 1
 
 	return NewName
+
 
 ##########################################################################################
 ##########################################################################################
@@ -96,11 +95,12 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 	# XXX Avec ceux que je veux, je crée une première fois la colonne avec les nouveaux noms
 	new_report_table=report_table[report_table.Gene.isin(PROTEIN_FUNCTION)].reset_index(drop=True)
 
-	# NOTE New name : AAAAKKK.B.LLLLL[_numero de systeme si deux systemes trouvés][_Num(nombre de fois nom trouvé)]_nomSysteme_D_nomProteine (for 2016 gembase format)
+	# NOTE New name : AAAAKKK.B.LLLLL_numero de systeme[_Num(nombre de fois nom trouvé)]_nomSysteme_D_nomProteine (for 2016 gembase format)
 	# NOTE New name : NC_XXXXXX[_numero de systeme si deux systemes trouvés][_Num(nombre de fois nom trouvé)]_nomSysteme_D_nomProteine (for 2015 gembase format)
 	# NOTE New name : NNNN[_numero de systeme si deux systemes trouvés][_Num(nombre de fois nom trouvé)]_nomSysteme_V_nomProteine (for 2013 gembase format)
 	dict_count = {}
 	new_report_table["NewName"] = new_report_table.apply(set_name, args=[dict_count], axis=1)
+	new_report_table["NewName"] = new_report_table.apply(lambda x: x.NewName if ("_Num" in x.NewName or dict_count[x.NewName] == 1) else "{}_Num1_{}".format("_".join(x.NewName.split("_")[:2]), "_".join(x.NewName.split("_")[2:])), axis=1)
 
 	# XXX Je crée une table de traduction entre mon nom et le nom générique de la séquence et je change les nouveaux nom pour le nom final
 	new_report_table.loc[:,["Hit_Id","NewName"]].to_csv(os.path.join(INFO, "translation_table_detected.tab"),sep="\t", index=False)
@@ -258,8 +258,11 @@ def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEI
 	number_process_done = 0
 
 	with Pool(processes=nb_thread) as pool:
+		# Je fais une liste avec le tous les arguments pour chaques fasta dans le dossier de genome
 		big_list = [(fasta, listOfFile, new_report_table, PROTEIN_FUNCTION, nb_replicon_wanted) for fasta in folderFasta if os.path.splitext(os.path.basename(fasta))[0] in list(new_report_table.Replicon_name)]
 		#func=partial(write_fasta_multithreads, listOfFile=listOfFile, wanted=new_report_table, PROTEIN_FUNCTION=PROTEIN_FUNCTION), iterable=folderFasta
+
+		# Je lance mon multiprocesseur sur chaque association argument/fasta de ma grande liste
 		result = pool.starmap(write_fasta_multithreads, iterable=big_list)
 		pool.close()
 		pool.join()
@@ -291,6 +294,45 @@ def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEI
 
 	new_report_table.to_csv(os.path.join(INFO, "report_modif","detected.report"), sep="\t", index=False)
 	return new_report_table
+
+##########################################################################################
+##########################################################################################
+
+def set_verified_newname(row, dict_count, problem, df_translate=pd.DataFrame()):
+
+	"""
+	Function that set the name of verified sequences
+
+	:param row: The row of the dataframe that contain all the information of the information about the verified sequences
+	:type: pandas.Series
+	:param dict_count: a dictionnary that will contain all the newname set to know if the newname is set yet.
+	:type: dict
+	:param problem: value to know if df_translate exist (more or less)
+	:type: bool
+	:param df_translate: a dataframe that contain the name of some verified systeme that are in 2 copy in the same genome
+	:type: pandas.DataFrame
+	:return: the newname set
+	:rtype: str
+	"""
+
+	tmp_replicon = row.NewRepliconName.split("_")[0]
+
+	if problem and row.SystID in list(df_translate.index) and df_translate.loc[row.SystID, "Num"] >= 2:
+		num_tmp = df_translate.loc[row.SystID, "Num"]
+		tmp_replicon = "{}_{}".format(tmp_replicon, num_tmp)
+	else :
+		tmp_replicon = "{}_{}".format(tmp_replicon, 1)
+		num_tmp = 1
+
+	NewName = "{}_{}_V_{}".format(tmp_replicon, row.SystID.split("_")[-1], "_".join(row.Gene.split("_")[1:]))
+
+	if NewName in dict_count :
+		dict_count[NewName] += 1
+		NewName = "{}_Num{}_{}_V_{}".format(tmp_replicon, dict_count[NewName], row.SystID.split("_")[-1], "_".join(row.Gene.split("_")[1:]))
+	else :
+		dict_count[NewName] = 1
+
+	return NewName
 
 ##########################################################################################
 ##########################################################################################
@@ -329,7 +371,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 	w_file = open(os.path.join(INFO, "translation_table_verified.tab"), 'w')
 	w_file.write("#Name_fasta_file\tNew_name\n")
 
-	info_extract = pd.read_table(info_dat, index_col=0, names=["Gene","System","SystID","Family","Note","Note2","NewName"], comment="#")
+	info_extract = pd.read_table(info_dat, index_col=0, names=["Gene","System","SystID","Family","Note","Note2","NewRepliconName"], comment="#")
 
 	# XXX Ce fichier est juste là car j'ai un soucis de plus d'un système par systèmes validés
 	problem = False
@@ -341,79 +383,39 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 	progression=1
 
+	info_extract['Gene'] = info_extract.apply(lambda x: "{}_{}".format(x.System, x.Gene) if x.Gene.split("_")[0] not in ['T2SS','T4P', 'Tad', "Com"] else x.Gene, axis=1)
+	info_extract = info_extract[info_extract.Gene.isin(PROTEIN_FUNCTION)]
+	df_newname = info_extract.apply(set_verified_newname, args=[dict_count, problem, df_translate], axis=1)
+	df_newname = df_newname.apply(lambda x: x if ("_Num" in x or dict_count[x] == 1) else "{}_Num1_{}".format("_".join(x.split("_")[:2]), "_".join(x.split("_")[2:])))
+	df_newname.reset_index().to_csv(w_file, sep="\t", index=False, header=False)
+
+	#Pour facilité le loc après
+	df_newname = df_newname.to_frame()
+	df_newname.columns = ["NewName"]
+
 	seqiter = SeqIO.parse(data_fasta, "fasta")
 	for seq in seqiter :
-		if seq.id in info_extract.index :
+		if seq.id in df_newname.index :
 
-			sys.stdout.write("{:.2f}% : {}/{} sequences wanted found\r".format(progression/float(info_extract.shape[0])*100, progression,info_extract.shape[0]))
+			sys.stdout.write("{:.2f}% : {}/{} sequences wanted found\r".format(progression/float(df_newname.shape[0])*100, progression,df_newname.shape[0]))
 			sys.stdout.flush()
 			progression += 1
 
 			# IDEA pour faire un truc général je pourrais par exemple crée la liste à partir du fichier de definition de protein_function.def
+			writing_file = re.search("[a-zA-Z0-9/_]+{}\.fasta".format(PROTEIN_FUNCTION[info_extract.loc[seq.id, "Gene"]]), "\t".join(listOfFile)).group(0)
 
-			tmp_replicon = info_extract.loc[seq.id, "NewName"].split("_")[0]
-			num_tmp = 1
-			if problem and info_extract.loc[seq.id, "SystID"] in list(df_translate.index) and df_translate.loc[info_extract.loc[seq.id, "SystID"], "Num"] == 2:
-				tmp_replicon = "{}_{}".format(tmp_replicon, 2)
-				num_tmp = 2
+			gene_tmp = info_extract.loc[seq.id, "Gene"]
 
-			if info_extract.loc[seq.id, "Gene"].split("_")[0] in ['T2SS','T4P', 'Tad', "Com"]:
-				if info_extract.loc[seq.id, "Gene"] in PROTEIN_FUNCTION :
+			seq.id = df_newname.loc[seq.id, 'NewName']
+			seq.name = ""
+			seq.description = ''
 
-					gene_tmp = info_extract.loc[seq.id, "Gene"]
+			SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
 
-					writing_file = re.search("[a-zA-Z0-9/_]+{}\.fasta".format(PROTEIN_FUNCTION[info_extract.loc[seq.id, "Gene"]]), "\t".join(listOfFile)).group(0)
-
-
-					NewName = "{}_{}_V_{}".format(tmp_replicon, info_extract.loc[seq.id, "SystID"].split("_")[-1], "_".join(info_extract.loc[seq.id, "Gene"].split("_")[1:]))
-
-					if NewName in dict_count :
-						dict_count[NewName] += 1
-						NewName = "{}_Num{}_{}_V_{}".format(tmp_replicon, dict_count[NewName], info_extract.loc[seq.id, "SystID"].split("_")[-1], "_".join(info_extract.loc[seq.id, "Gene"].split("_")[1:]))
-					else :
-						dict_count[NewName] = 1
-
-					# XXX je fais aussi un fichier translation pour les séquences vérifiées
-					w_file.write("{}\t{}\n".format(seq.id, NewName))
-
-					seq.id = NewName
-					seq.name = ""
-					seq.description = ''
-
-					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
-				else :
-					continue
-
-			else :
-				# NOTE Permet d'avoir le bon nom si dans la colonne 2 j'ai que gspD par exemple et comme ça je reforme T2SS_gspD pour les certains systemes ...
-				gene_tmp = info_extract.loc[seq.id, "System"]+"_"+info_extract.loc[seq.id, "Gene"]
-
-				if gene_tmp in PROTEIN_FUNCTION :
-					writing_file = re.search('[/a-zA-Z0-9_]+{}\.fasta'.format(PROTEIN_FUNCTION[gene_tmp]), "\t".join(listOfFile)).group(0)
-
-					NewName = "{}_{}_V_{}".format(tmp_replicon, info_extract.loc[seq.id, "System"].split("_")[-1], info_extract.loc[seq.id, "Gene"])
-
-					if NewName in dict_count :
-						dict_count[NewName] += 1
-						NewName = "{}_Num{}_{}_V_{}".format(tmp_replicon, dict_count[NewName], info_extract.loc[seq.id, "System"].split("_")[-1], info_extract.loc[seq.id, "Gene"])
-					else :
-						dict_count[NewName] = 1
-
-					# XXX je fais aussi un fichier translation pour les séquences vérifiées
-					w_file.write("{}\t{}\n".format(seq.id, NewName))
-
-					seq.id = NewName
-					seq.name = ''
-					seq.description = ''
-					SeqIO.write(seq, list_handle[listOfFile.index(writing_file)], "fasta")
-				else :
-					continue
-
-
-			NewName_split = NewName.split("_")
+			NewName_split = seq.id.split("_")
 			index_V = NewName_split.index("V")
-			report_like.loc[-1, "NewName"] = NewName
-			report_like.loc[-1, "System_Id"] = "{}_{}_{}".format(NewName_split[0], NewName_split[index_V-1], num_tmp)
+			report_like.loc[-1, "NewName"] = seq.id
+			report_like.loc[-1, "System_Id"] = "{}_{}_{}".format(NewName_split[0], NewName_split[index_V-1], NewName_split[1])
 			report_like.loc[-1, "Gene"] = gene_tmp
 			report_like.index = report_like.index+1
 
@@ -657,9 +659,13 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	print("# Concatetaned file")
 	print("#################\n")
 
-	# NOTE Dictionaire avec en clef l'id espèce/système et en value une liste
+	# NOTE Dictionnaire avec en clef l'id espèce/système et en value une liste : pour le critère 100% similaire
 	# NOTE ["l'id espèce/système du verifié qui correspond", [liste des sequences ATPase, IM ...]]
 	dict_remove = {}
+
+	# NOTE Dictionnaire avec en clef l'id espèce/système et en value une liste : pour le critère au moins 1 ATPase et 1 IMplatform
+	# NOTE ["l'id espèce/système du verifié qui correspond", [liste des sequences ATPase, IM ...]]
+	dict_remove_ATP_IM = {}
 
 	print("\n------------------------------------------")
 	print("| First read : Creation of the dictionnary")
@@ -674,6 +680,7 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 		list_id_verified = [seq.id for seq in list_seq_verified]
 		list_seq_verified = [seq.seq for seq in list_seq_verified]
 
+		# NOTE liste des sequence et identifiant qui sont à garder
 		list_seq_detected_OK = []
 		list_id_detected_OK = []
 
@@ -762,5 +769,109 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 
 	# NOTE Dict remove complete and all concatenate write
 	write_remove_concatenate(dict_remove, INFO_folder)
+
+	return
+
+##########################################################################################
+##########################################################################################
+
+
+def concatenate_reduce(list_file_concatenated, PATH_FASTA_CONCATENATED_REMOVE_POOR, report_df_full, DICT_IMPORTANT_PROTEINS, info_folder, liste_detected_file = False, path_detected = False):
+
+	"""
+	Function that concatenate the verified and detected file and remove detected sequences
+	that are already in the verified file. It write a file in the information folder in
+	markdown format to know which sequences are extract and which verified sequences are
+	the same of this one.
+
+	:param list_file_concatenated: list of the concatenated fasta files
+	:type: list of str
+	:param PATH_FASTA_CONCATENATED_REMOVE_POOR: absolute path to concatenated fasta folder whete to write the new files
+	:type: str
+	:param report_df_full: the dataframe that contain the information about each proteins of the analysis
+	:type: pandas.DataFrame
+	:param DICT_IMPORTANT_PROTEINS: dictionnary of the functions in key and proteins wanted in value
+	:type: dict
+	:param info_folder: The path to the information folder
+	:type: str
+	:param liste_detected_file: list of the detected fasta files
+	:type: str
+	:param path_detected: absolute path to detected fasta folder whete to write the new files
+	:type: str
+	:return: Nothing
+	"""
+
+	print("\n#################################################")
+	print("# Remove systems without ATPase and/or IMplatform")
+	print("#################################################\n")
+
+	new_report = report_df_full.copy()
+
+	with open(os.path.join(info_folder, "remove_not_complete_systems.report"), "w") as w_file :
+		for function in DICT_IMPORTANT_PROTEINS :
+			w_file.write("# These systems are remove because they have not at least protein of with the function {}\n".format(function))
+			list_wanted_system = new_report.System_Id[new_report.Gene.isin(DICT_IMPORTANT_PROTEINS[function])].tolist()
+			new_report[~(new_report.System_Id.isin(list_wanted_system))].to_csv(w_file, sep="\t", index=False, header=False)
+			new_report = new_report[new_report.System_Id.isin(list_wanted_system)]
+
+
+	if liste_detected_file :
+		type_file = "concatenated"
+	else :
+		type_file = "detected"
+
+	print("\n################################")
+	print("# Write the new {} files".format(type_file))
+	print("################################\n")
+
+
+	for myfile in list_file_concatenated :
+
+		seq_parser = SeqIO.parse(myfile, "fasta")
+		number_seq = len(list(seq_parser))
+		progression = 1
+
+		seq_parser = SeqIO.parse(myfile, format="fasta")
+		with open(os.path.join(PATH_FASTA_CONCATENATED_REMOVE_POOR, os.path.basename(myfile)), 'w') as w_file :
+			for seq in seq_parser :
+
+				print("File : {} -> {:.2f}% : {}/{} sequences read".format(os.path.basename(myfile), progression/float(number_seq)*100, progression,number_seq), end='\r', flush=True)
+				progression += 1
+
+				if seq.id in new_report.NewName.tolist() :
+					SeqIO.write(seq, w_file, format="fasta")
+
+		print()
+		print("File : {} -> Done!".format(myfile))
+
+	if liste_detected_file :
+
+		print("\n#############################")
+		print("# Write the new detected files")
+		print("#############################\n")
+
+
+		for myfile in liste_detected_file :
+
+			seq_parser = SeqIO.parse(myfile, "fasta")
+			number_seq = len(list(seq_parser))
+			progression = 1
+
+			seq_parser = SeqIO.parse(myfile, format="fasta")
+			with open(os.path.join(path_detected, os.path.basename(myfile)), 'w') as w_file :
+				for seq in seq_parser :
+
+					print("File : {} -> {:.2f}% : {}/{} sequences read".format(os.path.basename(myfile), progression/float(number_seq)*100, progression,number_seq), end='\r', flush=True)
+					progression += 1
+
+					if seq.id in new_report.NewName.tolist() :
+						SeqIO.write(seq, w_file, format="fasta")
+
+			print()
+			print("File : {} -> Done!".format(myfile))
+
+	print()
+	print("Done!")
+	print()
 
 	return

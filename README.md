@@ -29,8 +29,16 @@ Comments in the annotation table begin with **##**
 
 Format file wanted phylums
 --------------------------
-This file have two columns each line have one with the kingdom and one phylum.
+This file have two columns, one with the kingdom and one phylum.
 
 kingdom **[TAB]** phylum
+
+Comments in the annotation table begin with **#**  
+
+Format file distance systems
+--------------------------
+This file have two columns, one with the system and one maximal distance between two genes (as set in the .xml of the macsyfinder model).
+
+system **[TAB]** distance
 
 Comments in the annotation table begin with **#**  

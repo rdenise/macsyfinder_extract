@@ -67,10 +67,8 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
 
 		Replicon, System, Number = my_index.split("_")
-		if int(Number) == 1 :
-		    df_info_system.loc[my_index, "System_number"] = "."
-		else :
-		    df_info_system.loc[my_index, "System_number"] = Number
+
+		df_info_system.loc[my_index, "System_number"] = Number
 
 		if System in ("Tcp", "R64", "Cof", "Bfp", "Lng"):
 		    System = "T4bP"
@@ -244,12 +242,12 @@ def systems_count(df_info_system, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
 
 	for kingdom in speciesDict :
 		for phylum in speciesDict[kingdom] :
-			df_count_system.loc[(kingdom, phylum)] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts()
+			df_count_system.loc[(kingdom, phylum)] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts()
 
-		df_count_system.loc[(kingdom,"Other")] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic")) & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
-		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic")) & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
+		df_count_system.loc[(kingdom,"Other")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
+		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
 
-	df_count_system.loc[("Summary_total","")] = df_info_system[((df_info_system.System_number == ".") | (df_info_system.System_name == "generic"))].System_name.value_counts()
+	df_count_system.loc[("Summary_total","")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic"))].System_name.value_counts()
 	df_count_system.fillna(0, inplace=True)
 	df_count_system = df_count_system.astype(int)
 

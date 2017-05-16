@@ -63,6 +63,14 @@ general_option.add_argument("-o",'--output',
 							dest="output",
 							metavar='<OUTPUT>',
 							help="Using <OUTPUT> for output files (default: reportFile directory)")
+general_option.add_argument("-annot",'--annotation',
+							metavar=("<ANNOTATION_TABLE>", "<SYSTEMES_DISTANCE>"),
+							nargs=2,
+							required=True,
+							dest="annotation",
+							default=None,
+							help="Use a annotation table to know the kingdom and phylum of the species where the systems is found and a tabulate file that contain the name of the system in fisrt columns and the maximum distance in the second. Write a report table with more information on it")
+
 
 extraction_option = parser.add_argument_group(title = "Extraction options")
 extraction_option.add_argument("-cut",'--cutoff',
@@ -73,7 +81,7 @@ extraction_option.add_argument("-cut",'--cutoff',
 							default=None,
 							help="Option to remove sequences that are way to much longer or shorter beside of the other. (If there is no file, it will calculate the cutoff and generate a file)")
 extraction_option.add_argument("-veriFile",'--verifiedFile',
-							metavar="<VERIFIED_FASTA_FILE>, <VERIFIED_DATA>",
+							metavar=("<VERIFIED_FASTA_FILE>", "<VERIFIED_DATA>"),
 							nargs=2,
 							dest="veriFile",
 							default=None,
@@ -87,6 +95,13 @@ extraction_option.add_argument("-w", "--worker_proc",
                             dest="number_proc",
                             default=1,
                             help="Number of processor you want to used in multi_threading")
+extraction_option.add_argument("-rm_poor",'--remove_poor',
+							metavar="<FUNCTION>",
+							nargs='+',
+							dest="remove_poor",
+							default=None,
+							help="Option to remove systems that do not have at least the proteins with the function gave in arguments")
+
 
 merge_option = parser.add_argument_group(title = "Merge report options")
 merge_option.add_argument("-m",'--merge',
@@ -98,10 +113,9 @@ merge_option.add_argument("-m",'--merge',
 
 stat_option = parser.add_argument_group(title = "Count and statistics options")
 stat_option.add_argument("-stats",'--statistics',
-							metavar=("<ANNOTATION_TABLE>"),
 							dest="stats",
-							default=None,
-							help="Do count and statistics of the systems found. Need a annotation table to know the kingdom and phylum of the species where the systems is found. Need a annotation table")
+							action='store_true',
+							help="Do count and statistics of the systems found.")
 stat_option.add_argument("-wanted",'--phylum_wanted',
 							metavar=("<PHYLUM_LIST>"),
 							dest="wanted",
@@ -140,21 +154,28 @@ else :
 
 create_folder(OUTPUT)
 
+
+if args.annotation :
+	ANNOTATION = args.annotation[0]
+	FILE_DISTANCE = args.annotation[1]
+
 # XXX Creation of an information folder for each sequence remove or file generate (as cutoff, ...)
 INFO=os.path.join(OUTPUT,"info_folder")
 create_folder(INFO)
 create_folder(os.path.join(INFO, "report_modif"))
 
-if args.stats_only :
+if args.stats_only and args.reportFile:
 	if os.path.isfile(os.path.join(INFO, "report_modif" "detected.report")) :
-		sys.exit("You need to specify the folder of a previous analysis with the option '-o' [PATH/TO/PREVIOUS/ANALYSIS] and the report file -r/--reportfile [REPORTFILE]")
+		sys.exit("You need to specify the folder of a previous analysis with the option -o/--output [PATH/TO/PREVIOUS/ANALYSIS], the report file -r/--reportfile [REPORTFILE] and -annot/--annotation [ANNOTATION_TABLE]")
+elif args.stats and not args.annotation :
+	sys.exit("You need to -annot/--annotation [ANNOTATION_TABLE] option to do stats")
 else :
-	if args.seqData and args.reportFile :
+	if args.seqData and args.reportFile:
 		FASTA = args.seqData
-		REPORT = args.reportFile
 	else :
-		sys.exit("sequence_extractor.py: error: the following arguments are required: -s/--seqdata, -r/--reportfile, -d/--defFile")
+		sys.exit("sequence_extractor.py: error: the following arguments are required: -s/--seqdata, -r/--reportfile, -d/--defFile, -annot/--annotation")
 
+REPORT = args.reportFile
 PROTEIN_FUNCTION = read_protein_function(args.defFile)
 
 # XXX List of all the function name with .fasta add at the end
@@ -184,13 +205,59 @@ if not args.stats_only :
 	else :
 		report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc))
 
+# XXX Permet d'avoir un report plus complet avec plus d'information sur mes systemes seulement
+if not args.stats_only and args.annotation:
+
+	print("\n########################")
+	print("# Create annotation files")
+	print("########################\n")
+
+
+	DICT_SYSTEMS = create_dict_system(PROTEIN_FUNCTION)
+
+
+	print("\n------------------------")
+	print("| Create found.names file")
+	print("------------------------\n")
+
+	# XXX Je crée le fichier ou je met mes systemes de mon analyse
+	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
+	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
+
+	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
+		# XXX Pour les verifiés
+		info_file.write("## Verified systems\n")
+		df_info_verified = set_df_info_system(report_df_verified, info_file, ANNOTATION, DICT_SYSTEMS, "V")
+
+	# XXX Pour les detectés
+	info_file.write("## Detected systems\n")
+	df_info_detected = set_df_info_system(report_df_detected, info_file, ANNOTATION, DICT_SYSTEMS, "D")
+
+	info_file.close()
+
+	print()
+	print("Done!")
+	print()
+
+	distance_max = create_dict_distance(FILE_DISTANCE)
+
+    # XXX Creation of the modified report with information about the if the gene is in tandem, loner, multi copy, the kingdom of the species, the phylum...
+	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
+		merge_detected_verified_report(os.path.join(INFO, "report_modif", "verified.report"), REPORT, os.path.join(INFO, "report_modif", "detected.report"), os.path.join(INFO,"systems_found.names"), pd.read_table(ANNOTATION, index_col=0), PROTEIN_FUNCTION, os.path.join(INFO, "report_modif"), distance_max)
+	else :
+		names_dataframe = ['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
+		REPORT_df = pd.read_table(REPORT, names=names_dataframe)
+		REPORT_df_modif = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"))
+
+		fill_reportdf_detected(REPORT_df, PROTEIN_FUNCTION, REPORT_df_modif, pd.read_table(ANNOTATION, index_col=0), os.path.join(INFO, "report_modif"), distance_max, names_dataframe)
+
 
 if args.concat :
 	# NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences non identique au verifiées.
 	PATH_FASTA_DETECTED_SELECTED = os.path.join(OUTPUT, "fasta_detected", "selected_concatenation")
 	create_folder(PATH_FASTA_DETECTED_SELECTED)
 
-	if args.cutoff :
+	if args.cutoff or args.remove_poor:
 		PATH_FASTA_CONCATENATED = os.path.join(OUTPUT, "fasta_concatenated", "raw")
 	else :
 		PATH_FASTA_CONCATENATED = os.path.join(OUTPUT, "fasta_concatenated")
@@ -198,6 +265,38 @@ if args.concat :
 	create_folder(PATH_FASTA_CONCATENATED)
 	concatenate_detected_verified(all_function, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED)
 	list_file_concatenated = [os.path.join(PATH_FASTA_CONCATENATED, function) for function in all_function]
+
+	# NOTE je met un nouveau path pour les fichier detectés si jamais je dois revenir sur ces fichiers
+	PATH_FASTA_DETECTED = PATH_FASTA_DETECTED_SELECTED
+	list_file_detected = [os.path.join(PATH_FASTA_DETECTED, function) for function in all_function]
+
+
+# XXX Permet d'enlevé les systemes sans ATPase et/ou IMplatform
+if args.remove_poor :
+	# NOTE Je crée un dossier qui va contenir les fichiers détectés avec juste les séquences selectionés
+	PATH_FASTA_DETECTED_SELECTED = os.path.join(OUTPUT, "fasta_detected", "selected_remove_poor")
+	create_folder(PATH_FASTA_DETECTED_SELECTED)
+
+	dict_all_function = read_protein_function_reverse(args.defFile)
+	DICT_IMPORTANT_PROTEINS = {function:dict_all_function[function] for function in dict_all_function if function in args.remove_poor}
+
+	report_df_full = pd.read_table(os.path.join(INFO, "report_modif","report_modif_annotation_full.report"))
+
+	if args.concat :
+		PATH_FASTA_CONCATENATED_REMOVE_POOR = os.path.join(OUTPUT, "fasta_concatenated", "selected_remove_poor")
+		create_folder(PATH_FASTA_CONCATENATED_REMOVE_POOR)
+		concatenate_reduce(list_file_concatenated, PATH_FASTA_CONCATENATED_REMOVE_POOR, report_df_full, DICT_IMPORTANT_PROTEINS, INFO, liste_detected_file = list_file_detected, path_detected = PATH_FASTA_DETECTED_SELECTED)
+
+		# NOTE nouveau path concatenated
+		PATH_FASTA_CONCATENATED = PATH_FASTA_CONCATENATED_REMOVE_POOR
+		list_file_concatenated = [os.path.join(PATH_FASTA_CONCATENATED, function) for function in all_function]
+	else :
+		concatenate_reduce(list_file_detected, PATH_FASTA_DETECTED_SELECTED, report_df_full, DICT_IMPORTANT_PROTEINS, INFO)
+
+	# NOTE nouveau path detected
+	PATH_FASTA_DETECTED = PATH_FASTA_DETECTED_SELECTED
+	list_file_detected = [os.path.join(PATH_FASTA_DETECTED, function) for function in all_function]
+
 
 # XXX Deuxieme liste de fichiers concaténés ou detectés après cutoff
 if args.cutoff :
@@ -216,39 +315,12 @@ if args.stats_only :
 		report_df_verified = pd.read_table(os.path.join(INFO, "report_modif", "verified.report"), comment="#")
 	report_df_detected = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"), comment="#")
 
-if args.stats :
+if args.stats or args.stats_only:
 
 	print("\n#################")
 	print("# Count and Stats")
 	print("#################\n")
 
-	DICT_SYSTEMS = create_dict_system(PROTEIN_FUNCTION)
-
-	# XXX Je crée le fichier ou je met mes systemes de mon analyse
-	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
-	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
-
-	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
-		# XXX Pour les verifiés
-		info_file.write("## Verified systems\n")
-		df_info_verified = set_df_info_system(report_df_verified, info_file, args.stats, DICT_SYSTEMS, "V")
-
-	# XXX Pour les detectés
-	info_file.write("## Detected systems\n")
-	df_info_detected = set_df_info_system(report_df_detected, info_file, args.stats, DICT_SYSTEMS, "D")
-
-	info_file.close()
-
-	# Creation of the modified report with information about the if the gene is in tandem, loner, multi copy, the kingdom of the species, the phylum...
-    if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
-        merge_detected_verified_report(os.path.join(INFO, "report_modif", "verified.report"), REPORT, os.path.join(INFO, "report_modif", "detected.report"), os.path.join(INFO,"systems_found.names"), pd.read_table(args.stats, index_col=0), PROTEIN_FUNCTION, os.path.join(INFO, "report_modif"))
-	else :
-		names_dataframe = ['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
-		REPORT_df = pd.read_table(REPORT, names=names_dataframe)
-		REPORT_df_modif = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"))
-		distance_max = {"T2SS":5, "Tad":5, "T4P":5, "Com":10, "Archaellum":10, "generic":5}
-
-		fill_reportdf_detected(REPORT_df, PROTEIN_FUNCTION, REPORT_df_modif, pd.read_table(args.stats, index_col=0), os.path.join(INFO, "report_modif"), distance_max, names_dataframe)
 
 	DICT_SPECIES = {kingdom:np.unique(df_info_detected.Phylum[df_info_detected.Kingdom == kingdom]) for kingdom in set(df_info_detected.Kingdom)}
 
@@ -292,7 +364,7 @@ if args.stats :
 	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_info_detected, df_systems.columns)
 
 	# XXX Les dataframes en couleurs
-	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, args.stats, out_file)
+	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, ANNOTATION, out_file)
 
 
 	out_file.close()

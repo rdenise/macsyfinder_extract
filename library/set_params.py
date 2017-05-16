@@ -12,6 +12,7 @@ import numpy as np
 from Bio import SeqIO
 import glob
 import os, sys
+import pandas as pd
 
 ##########################################################################################
 ##########################################################################################
@@ -59,6 +60,30 @@ def read_protein_function(file_function):
 	for function in functions:
 		if function[0][0] != "#" :
 			dict_function.update({protein:function[0] for protein in function[1:]})
+	return dict_function
+
+##########################################################################################
+##########################################################################################
+
+def read_protein_function_reverse(file_function):
+
+	"""
+	Function that read a tabulate file with the function on the first column
+	and the name of the system_protein on the other (ex : ATPase	T2SS_gspE)
+
+	:param file_function: the full path of the file to read
+	:type: string
+	:return: a dictionnary with the name of the protein in key and the name of
+	the function as value
+	:rtype: dict
+	"""
+
+	dict_function={}
+	with open(file_function,"r") as r_file:
+		for line in r_file :
+			if not line.startswith("#") :
+				line_split = line.split()
+				dict_function[line_split[0]] = line_split[1:]
 	return dict_function
 
 ##########################################################################################
@@ -188,3 +213,21 @@ def create_dict_wanted(file_wanted):
 		dict_wanted[kingdom].append(phylum)
 
 	return dict_wanted, info[:,1].tolist()
+
+##########################################################################################
+##########################################################################################
+
+def create_dict_distance(file_distance):
+
+	"""
+	Function that create the dictionary of the maximal distance within systems.
+
+	:param file_distance: name of the file of distance in systems
+	:type: str
+	:return: dictionary with the systems as key and the distance as value.
+	:rtype: dict
+	"""
+
+	distance_df = pd.read_table(file_distance, comment="#", index_col=0, names=["distance"])
+
+	return distance_df.distance.to_dict()
