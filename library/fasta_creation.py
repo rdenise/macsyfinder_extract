@@ -298,18 +298,18 @@ def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEI
 ##########################################################################################
 ##########################################################################################
 
-def set_verified_newname(row, dict_count, problem, df_translate=pd.DataFrame()):
+def set_validated_newname(row, dict_count, problem, df_translate=pd.DataFrame()):
 
 	"""
-	Function that set the name of verified sequences
+	Function that set the name of validated sequences
 
-	:param row: The row of the dataframe that contain all the information of the information about the verified sequences
+	:param row: The row of the dataframe that contain all the information of the information about the validated sequences
 	:type: pandas.Series
 	:param dict_count: a dictionnary that will contain all the newname set to know if the newname is set yet.
 	:type: dict
 	:param problem: value to know if df_translate exist (more or less)
 	:type: bool
-	:param df_translate: a dataframe that contain the name of some verified systeme that are in 2 copy in the same genome
+	:param df_translate: a dataframe that contain the name of some validated systeme that are in 2 copy in the same genome
 	:type: pandas.DataFrame
 	:return: the newname set
 	:rtype: str
@@ -337,20 +337,20 @@ def set_verified_newname(row, dict_count, problem, df_translate=pd.DataFrame()):
 ##########################################################################################
 ##########################################################################################
 
-def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, INFO):
+def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, INFO):
 
 	# NOTE Pas du tous adapté si on a un programme général si des verifiés autre que les miens c'est foutu
 
 	"""
-	Function used to extract the verified sequences for ATPase, prepilin peptidase, pilin (major and minor), IM platform
+	Function used to extract the validated sequences for ATPase, prepilin peptidase, pilin (major and minor), IM platform
 
 	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
 	:type: list of str
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
 	:type: dict
-	:data_fasta: Fasta file with the verified sequence of the systems
+	:data_fasta: Fasta file with the validated sequence of the systems
 	:type: str
-	:info_dat:File with the information about the verified systems with this information : #SeqID Gene System SystID
+	:info_dat:File with the information about the validated systems with this information : #SeqID Gene System SystID
 	:type: str
 	:param INFO: absolute path of the info_folder
 	:type: str
@@ -360,7 +360,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 
 	print("\n#################")
-	print("# Verified Fasta")
+	print("# Validated Fasta")
 	print("#################\n")
 
 	report_like = pd.DataFrame(columns=["System_Id","Gene"])
@@ -368,7 +368,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 	list_handle = [open(my_file, 'w') for my_file in listOfFile]
 	dict_count = {}
 
-	w_file = open(os.path.join(INFO, "translation_table_verified.tab"), 'w')
+	w_file = open(os.path.join(INFO, "translation_table_validated.tab"), 'w')
 	w_file.write("#Name_fasta_file\tNew_name\n")
 
 	info_extract = pd.read_table(info_dat, index_col=0, names=["Gene","System","SystID","Family","Note","Note2","NewRepliconName"], comment="#")
@@ -385,7 +385,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 	info_extract['Gene'] = info_extract.apply(lambda x: "{}_{}".format(x.System, x.Gene) if x.Gene.split("_")[0] not in ['T2SS','T4P', 'Tad', "Com"] else x.Gene, axis=1)
 	info_extract = info_extract[info_extract.Gene.isin(PROTEIN_FUNCTION)]
-	df_newname = info_extract.apply(set_verified_newname, args=[dict_count, problem, df_translate], axis=1)
+	df_newname = info_extract.apply(set_validated_newname, args=[dict_count, problem, df_translate], axis=1)
 	df_newname = df_newname.apply(lambda x: x if ("_Num" in x or dict_count[x] == 1) else "{}_Num1_{}".format("_".join(x.split("_")[:2]), "_".join(x.split("_")[2:])))
 	df_newname.reset_index().to_csv(w_file, sep="\t", index=False, header=False)
 
@@ -429,7 +429,7 @@ def create_verified_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, IN
 
 	# XXX On ferme le fichier de translation_table
 	w_file.close()
-	report_like.to_csv(os.path.join(INFO, "report_modif", "verified.report"),sep="\t", index=False)
+	report_like.to_csv(os.path.join(INFO, "report_modif", "validated.report"),sep="\t", index=False)
 	return report_like
 
 ##########################################################################################
@@ -593,10 +593,10 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 
 	"""
 	This function write a file in the information folder in markdown format to
-	know which sequences are extract and which verified sequences are the same
+	know which sequences are extract and which validated sequences are the same
 	of this one.
 
-	:param dict_remove: dictionnary create by the function concatenate_detected_verified()
+	:param dict_remove: dictionnary create by the function concatenate_detected_validated()
 	:type: dict
 	:param INFO_folder: the absolute path to the info folder
 	:type: str
@@ -632,19 +632,19 @@ def write_remove_concatenate(dict_remove, INFO_folder):
 ##########################################################################################
 
 
-def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO_folder, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED):
+def concatenate_detected_validated(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_validated, INFO_folder, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED):
 
 	"""
-	Function that concatenate the verified and detected file and remove detected sequences
-	that are already in the verified file. It write a file in the information folder in
-	markdown format to know which sequences are extract and which verified sequences are
+	Function that concatenate the validated and detected file and remove detected sequences
+	that are already in the validated file. It write a file in the information folder in
+	markdown format to know which sequences are extract and which validated sequences are
 	the same of this one.
 
 	:param fasta_name: the name of all the fasta file create ([protein_function].fasta)
 	:type: list of str
 	:param PATH_FASTA_DETECTED: absolute path to detected fasta folder
 	:type: str
-	:param PATH_FASTA_VERIFIED: absolute path to verified fasta folder
+	:param PATH_FASTA_validated: absolute path to validated fasta folder
 	:type: str
 	:param INFO_folder: the absolute path to the info folder
 	:type: str
@@ -672,13 +672,13 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	print("------------------------------------------\n")
 
 	for fasta_file in fasta_name :
-		verified_fasta=os.path.join(PATH_FASTA_VERIFIED, fasta_file)
+		validated_fasta=os.path.join(PATH_FASTA_validated, fasta_file)
 		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
 		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
 
-		list_seq_verified = list(SeqIO.parse(verified_fasta, "fasta"))
-		list_id_verified = [seq.id for seq in list_seq_verified]
-		list_seq_verified = [seq.seq for seq in list_seq_verified]
+		list_seq_validated = list(SeqIO.parse(validated_fasta, "fasta"))
+		list_id_validated = [seq.id for seq in list_seq_validated]
+		list_seq_validated = [seq.seq for seq in list_seq_validated]
 
 		# NOTE liste des sequence et identifiant qui sont à garder
 		list_seq_detected_OK = []
@@ -705,10 +705,10 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 			if id_seq in dict_remove :
 				continue
 
-			elif seq.seq in list_seq_verified :
-				index=list_seq_verified.index(seq.seq)
+			elif seq.seq in list_seq_validated :
+				index=list_seq_validated.index(seq.seq)
 
-				id_seq_verif = list_id_verified[index].split("_")
+				id_seq_verif = list_id_validated[index].split("_")
 				id_seq_verif = re.sub("Num[0-9]_", "", "_".join(id_seq_verif[:id_seq_verif.index("V")+1]))
 
 				# NOTE dans le dictionnaire je met le système vérifié en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisième
@@ -734,12 +734,12 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 	print("-----------------------------\n")
 
 	for fasta_file in fasta_name :
-		verified_fasta=os.path.join(PATH_FASTA_VERIFIED, fasta_file)
+		validated_fasta=os.path.join(PATH_FASTA_validated, fasta_file)
 		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
 		new_detected_fasta=os.path.join(PATH_FASTA_DETECTED_SELECTED, fasta_file)
 		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
 
-		os.system('cat "{}" > "{}"'.format(verified_fasta, concatenated_fasta))
+		os.system('cat "{}" > "{}"'.format(validated_fasta, concatenated_fasta))
 
 		seq_parser = SeqIO.parse(detected_fasta, "fasta")
 		number_seq = len(list(seq_parser))
@@ -779,9 +779,9 @@ def concatenate_detected_verified(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_VE
 def concatenate_reduce(list_file_concatenated, PATH_FASTA_CONCATENATED_REMOVE_POOR, report_df_full, DICT_IMPORTANT_PROTEINS, info_folder, liste_detected_file = False, path_detected = False):
 
 	"""
-	Function that concatenate the verified and detected file and remove detected sequences
-	that are already in the verified file. It write a file in the information folder in
-	markdown format to know which sequences are extract and which verified sequences are
+	Function that concatenate the validated and detected file and remove detected sequences
+	that are already in the validated file. It write a file in the information folder in
+	markdown format to know which sequences are extract and which validated sequences are
 	the same of this one.
 
 	:param list_file_concatenated: list of the concatenated fasta files

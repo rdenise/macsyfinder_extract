@@ -80,16 +80,16 @@ extraction_option.add_argument("-cut",'--cutoff',
 							dest="cutoff",
 							default=None,
 							help="Option to remove sequences that are way to much longer or shorter beside of the other. (If there is no file, it will calculate the cutoff and generate a file)")
-extraction_option.add_argument("-veriFile",'--verifiedFile',
-							metavar=("<VERIFIED_FASTA_FILE>", "<VERIFIED_DATA>"),
+extraction_option.add_argument("-veriFile",'--validatedFile',
+							metavar=("<VALIDATED_FASTA_FILE>", "<VALIDATED_DATA>"),
 							nargs=2,
 							dest="veriFile",
 							default=None,
-							help="File with the sequence in fasta of the verified file and the file with the information about the verified systems with this information : #SeqID	Gene	System	SystID	Family	Note")
+							help="File with the sequence in fasta of the validated file and the file with the information about the validated systems with this information : #SeqID	Gene	System	SystID	Family	Note")
 extraction_option.add_argument("-conc",'--concatenate',
 							action='store_true',
 							dest="concat",
-							help="Allow to concatenate detected sequences and verified sequences")
+							help="Allow to concatenate detected sequences and validated sequences")
 extraction_option.add_argument("-w", "--worker_proc",
                             metavar="<NUMBER_OF_THREADS>",
                             dest="number_proc",
@@ -184,10 +184,10 @@ all_function = np.unique([function+".fasta" for function in PROTEIN_FUNCTION.val
 # XXX Si j'ai l'option verifié mise en place je demande les deux options.
 if args.veriFile :
 	veriFile, veriData = args.veriFile
-	PATH_FASTA_VERIFIED = os.path.join(OUTPUT, "fasta_verified")
-	list_file_verified = [os.path.join(PATH_FASTA_VERIFIED, function) for function in all_function]
-	create_folder(PATH_FASTA_VERIFIED)
-	report_df_verified = create_verified_fasta(list_file_verified, PROTEIN_FUNCTION, veriFile, veriData, INFO)
+	PATH_FASTA_VALIDATED = os.path.join(OUTPUT, "fasta_validated")
+	list_file_validated = [os.path.join(PATH_FASTA_VALIDATED, function) for function in all_function]
+	create_folder(PATH_FASTA_VALIDATED)
+	report_df_validated = create_validated_fasta(list_file_validated, PROTEIN_FUNCTION, veriFile, veriData, INFO)
 
 if not args.stats_only :
 	# XXX Première liste de fichiers détectés
@@ -224,10 +224,10 @@ if not args.stats_only and args.annotation:
 	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
 	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
 
-	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
+	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
 		# XXX Pour les verifiés
-		info_file.write("## Verified systems\n")
-		df_info_verified = set_df_info_system(report_df_verified, info_file, ANNOTATION, DICT_SYSTEMS, "V")
+		info_file.write("## Validated systems\n")
+		df_info_validated = set_df_info_system(report_df_validated, info_file, ANNOTATION, DICT_SYSTEMS, "V")
 
 	# XXX Pour les detectés
 	info_file.write("## Detected systems\n")
@@ -242,8 +242,8 @@ if not args.stats_only and args.annotation:
 	distance_max = create_dict_distance(FILE_DISTANCE)
 
     # XXX Creation of the modified report with information about the if the gene is in tandem, loner, multi copy, the kingdom of the species, the phylum...
-	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
-		merge_detected_verified_report(os.path.join(INFO, "report_modif", "verified.report"), REPORT, os.path.join(INFO, "report_modif", "detected.report"), os.path.join(INFO,"systems_found.names"), pd.read_table(ANNOTATION, index_col=0), PROTEIN_FUNCTION, os.path.join(INFO, "report_modif"), distance_max)
+	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
+		merge_detected_validated_report(os.path.join(INFO, "report_modif", "validated.report"), REPORT, os.path.join(INFO, "report_modif", "detected.report"), os.path.join(INFO,"systems_found.names"), pd.read_table(ANNOTATION, index_col=0), PROTEIN_FUNCTION, os.path.join(INFO, "report_modif"), distance_max)
 	else :
 		names_dataframe = ['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
 		REPORT_df = pd.read_table(REPORT, names=names_dataframe)
@@ -263,7 +263,7 @@ if args.concat :
 		PATH_FASTA_CONCATENATED = os.path.join(OUTPUT, "fasta_concatenated")
 
 	create_folder(PATH_FASTA_CONCATENATED)
-	concatenate_detected_verified(all_function, PATH_FASTA_DETECTED, PATH_FASTA_VERIFIED, INFO, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED)
+	concatenate_detected_validated(all_function, PATH_FASTA_DETECTED, PATH_FASTA_VALIDATED, INFO, PATH_FASTA_CONCATENATED, PATH_FASTA_DETECTED_SELECTED)
 	list_file_concatenated = [os.path.join(PATH_FASTA_CONCATENATED, function) for function in all_function]
 
 	# NOTE je met un nouveau path pour les fichier detectés si jamais je dois revenir sur ces fichiers
@@ -311,8 +311,8 @@ if args.cutoff :
 
 if args.stats_only :
 	# XXX Debug si j'ai enregister les df_report dans des fichiers séparés.
-	if os.path.isfile(os.path.join(INFO, "report_modif", "verified.report")) :
-		report_df_verified = pd.read_table(os.path.join(INFO, "report_modif", "verified.report"), comment="#")
+	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
+		report_df_validated = pd.read_table(os.path.join(INFO, "report_modif", "validated.report"), comment="#")
 	report_df_detected = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"), comment="#")
 
 if args.stats or args.stats_only:

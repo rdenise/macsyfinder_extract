@@ -238,75 +238,75 @@ def fill_reportdf_detected(report_df, protein_wanted, report_df_modif, info_tab,
 ##########################################################################################
 ##########################################################################################
 
-def fill_reportdf_verified(report_df_verified, df_found, folder):
+def fill_reportdf_validated(report_df_validated, df_found, folder):
 
     """
     Function that set new columns in the report dataframe : Tandem, Loner, Loner unique,
     NewName, MultiCopy, Max score, Min evalue, Status of the system, the kingdom and the phylum
 
-    :param report_df_verified: the dataframe modified by the create_verified_fasta function
+    :param report_df_validated: the dataframe modified by the create_validated_fasta function
     :type: pandas.Dataframe
     :param df_found: The dataframe create by the function set_df_info_system
     :type: pandas.DataFrame
     :param folder: The name of the folder where the information will be write
     :type: str
-    :return: a dataframe with the columns wanted added with the verified sequences
+    :return: a dataframe with the columns wanted added with the validated sequences
     :rtype: pandas.DataFrame
     """
 
     print("-----------------------")
-    print("|Create report verified")
+    print("|Create report validated")
     print("-----------------------")
 
     # On met le nom du replicon
-    report_df_verified["Replicon_Id"] = report_df_verified.apply(lambda x : x.System_Id.split("_")[0], axis=1)
+    report_df_validated["Replicon_Id"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[0], axis=1)
 
     # On dit quel est le nom du système de chaques sequences dans la colonne et on renome T4bP les systemes qui ne sont pas T2SS, T4P, Tad, Com, MSH et le reste T4bP
-    report_df_verified["Predicted_system"] = report_df_verified.apply(lambda x : x.System_Id.split("_")[-2] if x.System_Id.split("_")[-2] in ("T4P","T2SS", "Tad", "Com", "MSH") else "T4bP", axis=1)
-    report_df_verified["Reference_system"] = report_df_verified["Predicted_system"]
+    report_df_validated["Predicted_system"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[-2] if x.System_Id.split("_")[-2] in ("T4P","T2SS", "Tad", "Com", "MSH") else "T4bP", axis=1)
+    report_df_validated["Reference_system"] = report_df_validated["Predicted_system"]
 
     # On dit que le status sont validés
-    report_df_verified["System_status"] = "V"
+    report_df_validated["System_status"] = "V"
 
     # On merge les informations de df_found dand le report pour avoir le nom du kingdom, phylum.
-    report_df_verified = report_df_verified.merge(df_found[["Replicon_Id", "Kingdom", "Phylum"]].drop_duplicates(), on="Replicon_Id")
+    report_df_validated = report_df_validated.merge(df_found[["Replicon_Id", "Kingdom", "Phylum"]].drop_duplicates(), on="Replicon_Id")
 
     # Reorder the columns name
-    #print(report_df_verified.head(1))
-    report_df_verified.columns = ["System_Id", 'Gene', 'NewName', 'Replicon_name', 'Predicted_system', 'Reference_system', "System_status", 'Kingdom', 'Phylum']
+    #print(report_df_validated.head(1))
+    report_df_validated.columns = ["System_Id", 'Gene', 'NewName', 'Replicon_name', 'Predicted_system', 'Reference_system', "System_status", 'Kingdom', 'Phylum']
 
     #Place les multicopy
-    report_df_verified['Multi_copy'] = "No"
+    report_df_validated['Multi_copy'] = "No"
 
-    new_report_df_verified = report_df_verified.set_index(["System_Id", "Gene"])
+    new_report_df_validated = report_df_validated.set_index(["System_Id", "Gene"])
     #a verifé
-    new_report_df_verified["Multi_copy"] = report_df_verified.groupby("System_Id").apply(lambda x : x.groupby("Gene").apply(lambda y: "Yes" if y.shape[0]>1 else "No"))
+    new_report_df_validated["Multi_copy"] = report_df_validated.groupby("System_Id").apply(lambda x : x.groupby("Gene").apply(lambda y: "Yes" if y.shape[0]>1 else "No"))
 
     #reorder and reset index for sub_report
     #a finir
-    report_df_verified = new_report_df_verified.reset_index()[['NewName', 'Replicon_name', 'Gene', 'Reference_system', 'Predicted_system', "System_Id", "System_status","Multi_copy", 'Kingdom', 'Phylum']].sort_values(['System_Id']).reset_index(drop=True)
+    report_df_validated = new_report_df_validated.reset_index()[['NewName', 'Replicon_name', 'Gene', 'Reference_system', 'Predicted_system', "System_Id", "System_status","Multi_copy", 'Kingdom', 'Phylum']].sort_values(['System_Id']).reset_index(drop=True)
 
 
-    #report_df_verified.to_excel(os.path.join(folder, "report_modif_verified.xlsx"),index=False)
-    report_df_verified.to_csv(os.path.join(folder, "verified.report"),index=False, sep="\t")
+    #report_df_validated.to_excel(os.path.join(folder, "report_modif_validated.xlsx"),index=False)
+    report_df_validated.to_csv(os.path.join(folder, "validated.report"),index=False, sep="\t")
 
     print()
     print("Done!")
     print()
 
-    return report_df_verified
+    return report_df_validated
 
 ##########################################################################################
 ##########################################################################################
 
 
-def merge_detected_verified_report(report_file_verified, report_file_detected, report_detected_modif, file_found, info_tab, protein_def, info_folder, DISTANCE_DICT) :
+def merge_detected_validated_report(report_file_validated, report_file_detected, report_detected_modif, file_found, info_tab, protein_def, info_folder, DISTANCE_DICT) :
 
     """
     Function that set new columns in the report dataframe : Tandem, Loner, Loner unique,
     NewName, MultiCopy, Max score, Min evalue, Status of the system, the kingdom and the phylum
 
-    :param report_df_verified: the name dataframe modified by the create_verified_fasta function
+    :param report_df_validated: the name dataframe modified by the create_validated_fasta function
     :type: str
     :param report_file_detected: The name report dataframe from the merge report file from the macsyfinder analysis
     :type: str
@@ -343,17 +343,17 @@ def merge_detected_verified_report(report_file_verified, report_file_detected, r
     report_df_detected = fill_reportdf_detected(report_df, protein_def, report_df_modif, info_tab, info_folder, distance_max,names_dataframe)
 
     #Maintenant les verfiés
-    report_df_verified = pd.read_table(report_file_verified)
+    report_df_validated = pd.read_table(report_file_validated)
     df_found = read_systems_found(file_found)
 
-    report_df_verified = fill_reportdf_verified(report_df_verified, df_found, info_folder)
+    report_df_validated = fill_reportdf_validated(report_df_validated, df_found, info_folder)
 
     print("----------------------")
     print("|Create report merged")
     print("----------------------")
 
     # On merge les deux report et on remet les colonnes dans le bon ordre
-    report_df_merge = report_df_verified.append(report_df_detected, ignore_index=True)
+    report_df_merge = report_df_validated.append(report_df_detected, ignore_index=True)
 
     report_df_merge = report_df_merge[report_df_detected.columns]
 
