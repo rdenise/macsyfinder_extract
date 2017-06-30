@@ -415,7 +415,7 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 			NewName_split = seq.id.split("_")
 			index_V = NewName_split.index("V")
 			report_like.loc[-1, "NewName"] = seq.id
-			report_like.loc[-1, "System_Id"] = "{}_{}_{}".format(NewName_split[0], NewName_split[index_V-1], NewName_split[1])
+			report_like.loc[-1, "System_Id"] = "{}_{}_{}_V".format(NewName_split[0], NewName_split[index_V-1], NewName_split[1])
 			report_like.loc[-1, "Gene"] = gene_tmp
 			report_like.index = report_like.index+1
 
@@ -720,7 +720,7 @@ def concatenate_detected_validated(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_v
 				id_seq_reference = list_id_detected_OK[index]
 
 				# NOTE dans le dictionnaire je met le système référence en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisième
-				dict_remove[id_seq]=[id_seq_reference,[], seq.id]
+				dict_remove[id_seq] = [id_seq_reference,[], seq.id]
 
 			else :
 				list_seq_detected_OK.append(seq.seq)
@@ -734,10 +734,10 @@ def concatenate_detected_validated(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_v
 	print("-----------------------------\n")
 
 	for fasta_file in fasta_name :
-		validated_fasta=os.path.join(PATH_FASTA_validated, fasta_file)
-		detected_fasta=os.path.join(PATH_FASTA_DETECTED, fasta_file)
-		new_detected_fasta=os.path.join(PATH_FASTA_DETECTED_SELECTED, fasta_file)
-		concatenated_fasta=os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
+		validated_fasta = os.path.join(PATH_FASTA_validated, fasta_file)
+		detected_fasta = os.path.join(PATH_FASTA_DETECTED, fasta_file)
+		new_detected_fasta = os.path.join(PATH_FASTA_DETECTED_SELECTED, fasta_file)
+		concatenated_fasta = os.path.join(PATH_FASTA_CONCATENATED, fasta_file)
 
 		os.system('cat "{}" > "{}"'.format(validated_fasta, concatenated_fasta))
 
@@ -842,7 +842,7 @@ def concatenate_reduce(list_file_concatenated, PATH_FASTA_CONCATENATED_REMOVE_PO
 					SeqIO.write(seq, w_file, format="fasta")
 
 		print()
-		print("File : {} -> Done!".format(myfile))
+		print("File : {} -> Done!".format(os.path.basename(myfile)))
 
 	if liste_detected_file :
 
@@ -868,7 +868,7 @@ def concatenate_reduce(list_file_concatenated, PATH_FASTA_CONCATENATED_REMOVE_PO
 						SeqIO.write(seq, w_file, format="fasta")
 
 			print()
-			print("File : {} -> Done!".format(myfile))
+			print("File : {} -> Done!".format(os.path.basename(myfile)))
 
 	print()
 	print("Done!")

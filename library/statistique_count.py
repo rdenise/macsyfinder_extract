@@ -66,7 +66,10 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 	for my_index in df_info_system.index :
 		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
 
-		Replicon, System, Number = my_index.split("_")
+		if status == "V" :
+			Replicon, System, Number, status = my_index.split("_")
+		else:
+			Replicon, System, Number = my_index.split("_")
 
 		df_info_system.loc[my_index, "System_number"] = Number
 

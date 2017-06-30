@@ -262,7 +262,7 @@ def fill_reportdf_validated(report_df_validated, df_found, folder):
     report_df_validated["Replicon_Id"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[0], axis=1)
 
     # On dit quel est le nom du système de chaques sequences dans la colonne et on renome T4bP les systemes qui ne sont pas T2SS, T4P, Tad, Com, MSH et le reste T4bP
-    report_df_validated["Predicted_system"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[-2] if x.System_Id.split("_")[-2] in ("T4P","T2SS", "Tad", "Com", "MSH") else "T4bP", axis=1)
+    report_df_validated["Predicted_system"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[1] if x.System_Id.split("_")[1] in ("T4P","T2SS", "Tad", "Com", "MSH") else "T4bP", axis=1)
     report_df_validated["Reference_system"] = report_df_validated["Predicted_system"]
 
     # On dit que le status sont validés
