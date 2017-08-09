@@ -76,9 +76,14 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 		if System in ("Tcp", "R64", "Cof", "Bfp", "Lng"):
 		    System = "T4bP"
 
+		# BUG car j'ai des protéines echangeable donc des T4PM_comC dans des T4P ... donc ici c'est pas bon
 		if System.lower() not in ["generic", "generique", "t4bp"] :
 			protein_in_system = list(df_info_system.loc[my_index, "Proteins"].keys())
-			key_system = protein_in_system[0].split("_")[0]
+
+			if System == 'MSH':
+				key_system = 'T4P'
+			else :
+				key_system = System
 			theroric_protein_system = DICT_SYSTEMS[key_system]
 
 			proteins_to_add = set(theroric_protein_system) - set(protein_in_system)

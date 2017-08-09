@@ -149,7 +149,7 @@ if args.merge :
 
 
 if not args.output :
-	OUTPUT = os.path.join(os.path.abspath(args.reportFile),"extraction_{}".format(time.strftime("%d_%m_%y")))
+	OUTPUT = os.path.join(os.path.abspath(args.reportFile),"extraction_{}".format(time.strftime("%Y%m%d")))
 else :
 	OUTPUT = args.output
 
@@ -223,7 +223,7 @@ if not args.stats_only and args.annotation:
 
 	# XXX Je crée le fichier ou je met mes systemes de mon analyse
 	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
-	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
+	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
 
 	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
 		# XXX Pour les verifiés
@@ -323,7 +323,9 @@ if args.stats or args.stats_only:
 	print("#################\n")
 
 
-	DICT_SPECIES = {kingdom:np.unique(df_info_detected.Phylum[df_info_detected.Kingdom == kingdom]) for kingdom in set(df_info_detected.Kingdom)}
+	DICT_SPECIES = {kingdom:np.unique(df_info_detected.Phylum[df_info_detected.Kingdom == kingdom]).tolist() for kingdom in set(df_info_detected.Kingdom)}
+	DICT_SPECIES['Archaea'].append('Other')
+	DICT_SPECIES['Bacteria'].append('Other')
 
 	# BUG Je vais avoir besoin d'utiliser la fonction set_df_info_system() pour avoir des info dont j'ai besoin dans les fonctions suivantes
 
