@@ -55,7 +55,6 @@ general_option.add_argument("-r",'--reportfile',
 							dest="reportFile",
 							help="Report file from the macsyfinder analysis")
 general_option.add_argument("-d",'--defFile',
- 							required=True,
 							metavar="<file>",
 							dest="defFile",
 							help="Tabular file with the the function name in first column and name of the protein in the other")
@@ -67,11 +66,13 @@ general_option.add_argument("-o",'--output',
 general_option.add_argument("-annot",'--annotation',
 							metavar=("<ANNOTATION_TABLE>", "<SYSTEMES_DISTANCE>"),
 							nargs=2,
-							required=True,
 							dest="annotation",
 							default=None,
 							help="Use a annotation table to know the kingdom and phylum of the species where the systems is found and a tabulate file that contain the name of the system in fisrt columns and the maximum distance in the second. Write a report table with more information on it")
-
+general_option.add_argument("-c",'--config_file',
+							metavar="<file>",
+							dest="config_file",
+							help="The file .conf generate by macsyfinder")
 
 extraction_option = parser.add_argument_group(title = "Extraction options")
 extraction_option.add_argument("-cut",'--cutoff',
@@ -104,14 +105,6 @@ extraction_option.add_argument("-rm_poor",'--remove_poor',
 							help="Option to remove systems that do not have at least the proteins with the function gave in arguments")
 
 
-merge_option = parser.add_argument_group(title = "Merge report options")
-merge_option.add_argument("-m",'--merge',
-							metavar=("<OTHER_REPORT>", "<GENERIC_REPORT>"),
-							nargs=2,
-							dest="merge",
-							default=None,
-							help="Merge the generic .report and the other systems together without add a systems generic that is in the OTHER_REPORT. Write the new .report in GENERIC_REPORT directory")
-
 stat_option = parser.add_argument_group(title = "Count and statistics options")
 stat_option.add_argument("-stats",'--statistics',
 							dest="stats",
@@ -128,13 +121,29 @@ stat_option.add_argument("-so",'--stats_only',
 							help="Remove all the steps of searching through database. [ONLY available if the previous analysis is done in the same folder]")
 
 
+subparsers = parser.add_subparsers()
+merge_parser = subparsers.add_parser('merge', help='Merge report command : Merge the generic .report and the other systems together without add a systems generic that is in the OTHER_REPORT. Write the new .report in GENERIC_REPORT directory')
+
+merge_parser.add_argument("-or",'--other_report',
+							metavar=("<OTHER_REPORT>"),
+							dest="other_report",
+							default=None,
+							required=True,
+							help="File with the 'classic' systems")
+merge_parser.add_argument("-gr",'--generic_report',
+							metavar=("<GENERIC_REPORT>"),
+							dest="generic_report",
+							default=None,
+							required=True,
+							help="File with the 'generic' systems")
+
 # TODO Peut être entre tous les systèmes prendre celui qui a le plus de gènes ? et non pas le premier. Mais du coup fait faire plus de calculs.
 
 args = parser.parse_args()
 
-if args.merge :
-	fileAll = os.path.abspath(args.merge[0])
-	fileGeneric = os.path.abspath(args.merge[1])
+if "other_report" in args :
+	fileAll = os.path.abspath(args.other_report)
+	fileGeneric = os.path.abspath(args.generic_report)
 
 	fileWrite = os.path.join(os.path.dirname(os.path.dirname(fileGeneric)),"merge_macsyfinder.report")
 
@@ -146,6 +155,18 @@ if args.merge :
 
 	sys.exit(0)
 
+if not args.defFile or not args.annotation or not args.config_file :
+	sys.exit(dedent("""usage: sequence_extractor.py [-h] [-s <files>] [-r <file>] -d <file>
+                             [-o <OUTPUT>] -annot <ANNOTATION_TABLE>
+                             <SYSTEMES_DISTANCE> -c <file>
+                             [-cut [<CUTOFF_FILE>]]
+                             [-veriFile <VALIDATED_FASTA_FILE> <VALIDATED_DATA>]
+                             [-conc] [-w <NUMBER_OF_THREADS>]
+                             [-rm_poor <FUNCTION> [<FUNCTION> ...]]
+                             [-m <OTHER_REPORT> <GENERIC_REPORT>] [-stats]
+                             [-wanted <PHYLUM_LIST>] [-so]
+                             {merge} ...
+sequence_extractor.py: error: the following arguments are required: -d/--defFile, -annot/--annotation, -c/--config_file"""))
 
 
 if not args.output :
@@ -202,9 +223,9 @@ if not args.stats_only :
 
 	# XXX Je teste si je suis en multi_thread ou pas
 	if args.number_proc == 1  :
-		report_df_detected = find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION)
+		report_df_detected = find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, args.config_file)
 	else :
-		report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc))
+		report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc), args.config_file)
 
 # XXX Permet d'avoir un report plus complet avec plus d'information sur mes systemes seulement
 if not args.stats_only and args.annotation:
@@ -225,7 +246,7 @@ if not args.stats_only and args.annotation:
 	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
 	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
 
-	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
+	if os.path.isfile(os.path.join(INFO, "report_modif", "validated_tmp.report")) :
 		# XXX Pour les verifiés
 		info_file.write("## Validated systems\n")
 		df_info_validated = set_df_info_system(report_df_validated, info_file, ANNOTATION, DICT_SYSTEMS, "V")
@@ -243,8 +264,8 @@ if not args.stats_only and args.annotation:
 	distance_max = create_dict_distance(FILE_DISTANCE)
 
     # XXX Creation of the modified report with information about the if the gene is in tandem, loner, multi copy, the kingdom of the species, the phylum...
-	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
-		merge_detected_validated_report(os.path.join(INFO, "report_modif", "validated.report"), REPORT, os.path.join(INFO, "report_modif", "detected.report"), os.path.join(INFO,"systems_found.names"), pd.read_table(ANNOTATION, index_col=0), PROTEIN_FUNCTION, os.path.join(INFO, "report_modif"), distance_max)
+	if os.path.isfile(os.path.join(INFO, "report_modif", "validated_tmp.report")) :
+		merge_detected_validated_report(os.path.join(INFO, "report_modif", "validated_tmp.report"), REPORT, os.path.join(INFO, "report_modif", "detected.report"), os.path.join(INFO,"systems_found.names"), pd.read_table(ANNOTATION, index_col=0), PROTEIN_FUNCTION, os.path.join(INFO, "report_modif"), distance_max)
 	else :
 		names_dataframe = ['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
 		REPORT_df = pd.read_table(REPORT, names=names_dataframe)
@@ -369,6 +390,9 @@ if args.stats or args.stats_only:
 	# XXX Les dataframes en couleurs
 	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, ANNOTATION, out_file)
 
+	# XXX Information sur les detection de systems validés
+	if args.veriFile :
+		validated_stats(veriData, REPORT, args.config_file, os.path.join(PATH_TO_DATAFRAME, "figure"), INFO)
 
 	out_file.close()
 

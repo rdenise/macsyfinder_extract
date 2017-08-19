@@ -21,6 +21,8 @@ from Bio import SeqIO
 
 from set_params import *
 
+from macsypy.config import Config
+
 ##########################################################################################
 ##########################################################################################
 ##
@@ -53,7 +55,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 	:type: str
 	:param DICT_SYSTEMS: The dictionnary that contains the name of all the systems in key and the list of all the protein of this systems in values
 	:type: dict
-	:return: a dataframe with the information about ["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
+	:return: a dataframe with the information about ["Species_Id","Replicon_name","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
 	:rtype: pandas.Dataframe
 	"""
 
@@ -62,7 +64,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 	value_counts_series = report_df.groupby("System_Id").Gene.value_counts()
 	info_tab = pd.read_table(INFO_TAB, index_col=0, names=["Taxon_id", "Name", "Kingdom", "Phylum", "Lineage", "NC_ids"])
 
-	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_Id","System_name", "System_status", "System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
+	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_name","System_name", "System_status", "System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
 	for my_index in df_info_system.index :
 		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
 
@@ -91,7 +93,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 
 
 		df_info_system.loc[my_index, "System_name"] = System
-		df_info_system.loc[my_index, "Replicon_Id"] = Replicon
+		df_info_system.loc[my_index, "Replicon_name"] = Replicon
 		df_info_system.loc[my_index, "Species_Id"] = ".".join(Replicon.split(".")[:-1])
 
 		df_info_system.loc[my_index, "Kingdom"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Kingdom"]
@@ -145,7 +147,7 @@ def count_all(df_info_system, protein_function, PATH_TO_DATAFRAME, speciesDict) 
 	It will write a file with this information and return a dataframe.
 	It's a count by protein so I'll have the number of ATPase in T2SS for Proteobacteria
 
-	:param df_info_system: the dataframe with all the information about ["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
+	:param df_info_system: the dataframe with all the information about ["Species_Id","Replicon_name","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
 	:type: pandas.DataFrame
 	:param protein_function: dictionnary with the name of all the protein studied
 	:type: dict
@@ -228,7 +230,7 @@ def systems_count(df_info_system, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
 	It will write a file with this information and return a dataframe.
 	It's a count by systems so I'll have the number of T2SS for Proteobacteria
 
-	:param df_info_system: the dataframe with all the information about ["Species_Id","Replicon_Id","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
+	:param df_info_system: the dataframe with all the information about ["Species_Id","Replicon_name","System_name","System_number","Proteins", "Kingdom", "Phylum", "Lineage"]
 	:type: pandas.DataFrame
 	:param PATH_TO_DATAFRAME: absolute path to the results folder
 	:type: str
@@ -504,4 +506,151 @@ def dataframe_color(PATH_TO_HTLM, df, dict_wanted, list_wanted, INFO_TAB, w_file
 	html_df=HTML(string=style_df._repr_html_())
 	html_df.write_pdf(os.path.join(PATH_TO_HTLM,"dataframe_color.pdf"))
 
+	return
+
+##########################################################################################
+##########################################################################################
+
+def count_and_write_system_found(group, w_file) :
+
+	"""
+	Function that write the information needed in a file for the systems
+
+	:param group: a sub dataframe pandas from a groupby
+	:type: Pandas.DataFrame
+	:param w_file: Open file where the textual information will be write
+ 	:type: file
+	"""
+
+	w_file.write("############\n")
+	w_file.write("{}\n".format(group.System_name.unique()[0]))
+	w_file.write("############\n\n")
+
+	w_file.write("There is {}/{} systems validated detected by macsyfinder\n\nThe list of the systems will be below :\n------------------------------------------\n".format(sum(group.Found), group.shape[0]))
+
+	group.to_csv(w_file, sep='\t', index=False)
+	w_file.write("\n")
+
+	return
+
+##########################################################################################
+##########################################################################################
+
+def count_and_write_system_found_protein_step2(group, w_file) :
+
+	"""
+	Function that write the information needed in a file fro the protiens
+
+	:param group: a sub dataframe pandas from a groupby
+	:type: Pandas.DataFrame
+	:param w_file: Open file where the textual information will be write
+ 	:type: file
+	"""
+
+	w_file.write("\n")
+	w_file.write("{}\n".format(group.System_Id.unique()[0]))
+	w_file.write("=======================\n\n")
+
+	w_file.write("There is {}/{} proteins validated detected by macsyfinder\n\nThe list of the proteins will be below :\n------------------------------------------\n".format(sum(group.Protein_found), group.shape[0]))
+
+	group[["SeqId", "System_Id", "System_name", "Gene", "Protein_found
+	"]].to_csv(w_file, sep='\t', index=False)
+	w_file.write("\n")
+
+	return
+
+##########################################################################################
+##########################################################################################
+
+def count_and_write_system_found_protein_step1(group, w_file) :
+
+	"""
+	Function that write the information needed in a file
+
+	:param group: a sub dataframe pandas from a groupby
+	:type: Pandas.DataFrame
+	:param w_file: Open file where the textual information will be write
+ 	:type: file
+
+	"""
+
+	w_file.write("############\n")
+	w_file.write("{}\n".format(group.System_name.unique()[0]))
+	w_file.write("############\n\n")
+
+	#group.groupby("System_Id").apply(lambda x: count_and_write_system_found_protein_step1(x, w_file))
+	groups = group.groupby("System_Id", group_keys=False)
+	for index, x in groups :
+		count_and_write_system_found_protein_step2(x, w_file)
+
+	w_file.write("\n")
+
+	return
+
+##########################################################################################
+##########################################################################################
+
+
+def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE, INFO) :
+
+	"""
+	Function that check if I detected all my validated systems
+
+	:param dat_validated: Name of the .dat file of the validated systems
+	:type: str
+	:param report_detected: Name of .report of the detected systems
+	:type: str
+	:param config_file: name of the config file from macsyfinder
+	:type: str
+	:param PATH_TO_FIGURE: The absolute path to the figure folder
+	:type: str
+	:param INFO: absolute path of the info_folder
+	:type: str
+	"""
+
+
+	print("\n------------------")
+	print("| Validated System Stats")
+	print("------------------\n")
+
+	all_xml = glob.glob(os.path.join(Config(config_file=config_file, out_dir="tmp").profile_dir, "*hmm"))
+	list_profiles = [os.path.basename(profile)[:-4] for profile in all_xml]
+
+	# XXX On importe le dataframe et on le reduit sur seulement les systems presents dans gembases
+	df_dat_validated = pd.read_table(dat_validated, names=["SeqId", "Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Kingdom", "Phylum", "Notes"], comment="#")
+	df_dat_validated = df_dat_validated[df_dat_validated.In_gembases == "Yes"].reset_index(drop=True)
+	df_dat_validated = df_dat_validated[df_dat_validated.Gene.isin(list_profiles)].reset_index(drop=True)
+
+	# XXX Je lis le fichier report et je lui donne le bon nom de header car certain fichier ne l'ont pas ou plus, je reduit en plus le dataset au replicon de mes verifiés
+	names_dataframe=['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
+	df_report_deteted = pd.read_table(report_detected, names=names_dataframe, dtype="str", comment="#")
+	df_report_deteted = df_report_deteted[df_report_deteted.Replicon_name.isin(df_dat_validated.Replicon_name)].reset_index(drop=True)
+
+	df_dat_validated["Protein_found"] = df_dat_validated.SeqId.isin(df_report_deteted.Hit_Id)
+	System_found = df_dat_validated.groupby("System_Id", group_keys=False).apply(lambda x: True if sum(x.Protein_found) else False).reset_index()
+	System_found.columns = ["System_Id", "Found"]
+	System_found["System_name"] = df_dat_validated.groupby("System_Id", group_keys=False).apply(lambda x: x.System_name.unique()[0]).reset_index(drop=True)
+
+	sns.countplot(x="Found", hue="System_name", data=System_found)
+	sns.despine(offset=10, trim=True)
+	plt.savefig(os.path.join(PATH_TO_FIGURE,"numbers_system_validated_found.pdf"))
+	plt.close('all')
+
+	System_found.sort_values(by="System_name", inplace=True)
+
+	with open(os.path.join(INFO, "detection_validated.txt"), "w") as w_file :
+		#System_found.groupby("System_name").apply(lambda x: count_and_write_system_found(x, w_file))
+		groups = System_found.groupby("System_name", group_keys=False)
+		for index, group in groups :
+			count_and_write_system_found(group, w_file)
+
+	with open(os.path.join(INFO, "detection_validated_proteins.txt"), "w") as w_file :
+		#df_dat_validated.groupby("System_name").apply(lambda x: count_and_write_system_found_protein_step1(x, w_file))
+		groups = df_dat_validated.groupby("System_name", group_keys=False)
+		for index, group in groups :
+			count_and_write_system_found_protein_step1(group, w_file)
+
+	os.removedirs("tmp")
+
+	print("Done!")
 	return

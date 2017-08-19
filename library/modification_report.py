@@ -31,7 +31,7 @@ def read_systems_found(systems_found_file):
     :rtype: pandas.Dataframe
     """
 
-    names_dataframe=["Species_Id","Replicon_Id","System_name","System_status","System_number","Proteins","Kingdom","Phylum","Lineage"]
+    names_dataframe=["Species_Id","Replicon_name","System_name","System_status","System_number","Proteins","Kingdom","Phylum","Lineage"]
     summary_df = pd.read_table(systems_found_file, names=names_dataframe, comment="#")
     summary_df.ix[:,5]=summary_df.ix[:,5].apply(eval)
 
@@ -258,22 +258,18 @@ def fill_reportdf_validated(report_df_validated, df_found, folder):
     print("|Create report validated")
     print("-----------------------")
 
-    # On met le nom du replicon
-    report_df_validated["Replicon_Id"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[0], axis=1)
+    # On met le nom du replicon DEJA
+    #report_df_validated["Replicon_name"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[0], axis=1)
 
     # On dit quel est le nom du système de chaques sequences dans la colonne et on renome T4bP les systemes qui ne sont pas T2SS, T4P, Tad, Com, MSH et le reste T4bP
-    report_df_validated["Predicted_system"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[1] if x.System_Id.split("_")[1] in ("T4P","T2SS", "Tad", "Com", "MSH") else "T4bP", axis=1)
-    report_df_validated["Reference_system"] = report_df_validated["Predicted_system"]
+    #report_df_validated["Predicted_system"] = report_df_validated.apply(lambda x : x.System_Id.split("_")[1] if x.System_Id.split("_")[1] in ("T4P","T2SS", "Tad", "Com", "MSH") else "T4bP", axis=1)
+    #report_df_validated["Reference_system"] = report_df_validated["Predicted_system"]
 
     # On dit que le status sont validés
     report_df_validated["System_status"] = "V"
 
     # On merge les informations de df_found dand le report pour avoir le nom du kingdom, phylum.
-    report_df_validated = report_df_validated.merge(df_found[["Replicon_Id", "Kingdom", "Phylum"]].drop_duplicates(), on="Replicon_Id")
-
-    # Reorder the columns name
-    #print(report_df_validated.head(1))
-    report_df_validated.columns = ["System_Id", 'Gene', 'NewName', 'Replicon_name', 'Predicted_system', 'Reference_system', "System_status", 'Kingdom', 'Phylum']
+    report_df_validated = report_df_validated.merge(df_found[["Replicon_name", "Kingdom", "Phylum"]].drop_duplicates(), on="Replicon_name")
 
     #Place les multicopy
     report_df_validated['Multi_copy'] = "No"
@@ -284,11 +280,13 @@ def fill_reportdf_validated(report_df_validated, df_found, folder):
 
     #reorder and reset index for sub_report
     #a finir
-    report_df_validated = new_report_df_validated.reset_index()[['NewName', 'Replicon_name', 'Gene', 'Reference_system', 'Predicted_system', "System_Id", "System_status","Multi_copy", 'Kingdom', 'Phylum']].sort_values(['System_Id']).reset_index(drop=True)
+    report_df_validated = new_report_df_validated.reset_index()[['NewName', 'Hit_Id', 'Replicon_name', "Sequence_length", 'Gene', 'Reference_system', 'Predicted_system', "System_Id", "System_status","Multi_copy", 'Kingdom', 'Phylum']].sort_values(['System_Id']).reset_index(drop=True)
 
 
     #report_df_validated.to_excel(os.path.join(folder, "report_modif_validated.xlsx"),index=False)
     report_df_validated.to_csv(os.path.join(folder, "validated.report"),index=False, sep="\t")
+    # XXX On remove ici le fichier qui est maintenant inutile
+    os.remove(os.path.join(folder, "validated_tmp.report"))
 
     print()
     print("Done!")

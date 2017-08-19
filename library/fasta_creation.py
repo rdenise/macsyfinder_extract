@@ -22,6 +22,11 @@ import subprocess
 import shlex
 from set_params import *
 
+from macsypy.config import Config
+from macsypy.system import system_bank
+from macsypy.gene import gene_bank
+from macsypy.system_parser import SystemParser
+
 ##########################################################################################
 ##########################################################################################
 ##
@@ -30,6 +35,38 @@ from set_params import *
 ##########################################################################################
 ##########################################################################################
 
+def get_right_name(gene_name, gene_system):
+	"""
+	Function that translate the name of all the genes homologues found in th analysis expect the gene of T4PArachaea.
+	Could by more generic by asking the gene for the user or with a xml with the name of all the gene in the description not in homologs only.
+
+	:param gene_name: name of the gene to test
+	:type: str
+	:param gene_system: the instance of the systempredicted of the gene
+	:type: macsypy.system.System
+	:return: the good name for the gene
+	:rtype: str
+
+	"""
+
+	try :
+		gene_system.get_gene(gene_name)
+	except KeyError :
+		if gene_system.name == 'T4PArchaea' :
+			return gene_name
+		else :
+			genes = system.mandatory_genes + system.accessory_genes
+			for gene in genes :
+				if gene.exchangeable :
+					homologs = gene.get_homologs()
+					for homolog in homologs :
+						if gene_name == homolog.name :
+							return gene.name
+	return gene_name
+
+
+##########################################################################################
+##########################################################################################
 
 def set_name(row, dict_count) :
 
@@ -44,14 +81,19 @@ def set_name(row, dict_count) :
 	:rtype: str
 	"""
 
+	if "generic" != row.Predicted_system :
+		gene_tmp = "_".join(get_right_name(row.Gene, system_bank[row.Predicted_system]).split("_")[1:])
+	else :
+		gene_tmp = "_".join(row.Gene.split("_")[1:])
+
 	#On met ici le numero du system après le replicon name
 	NewNameTmp = "{}_{}".format(row.Replicon_name, row.System_Id.split('_')[-1])
 
-	NewName = "{}_{}_D_{}".format(NewNameTmp, row.Predicted_system, "_".join(row.Gene.split('_')[1:]))
+	NewName = "{}_{}_D_{}".format(NewNameTmp, row.Predicted_system, gene_tmp)
 
 	if NewName in dict_count :
 		dict_count[NewName] += 1
-		NewName = "{}_Num{}_{}_D_{}".format(NewNameTmp, dict_count[NewName], row.Predicted_system, "_".join(row.Gene.split('_')[1:]))
+		NewName = "{}_Num{}_{}_D_{}".format(NewNameTmp, dict_count[NewName], row.Predicted_system, gene_tmp)
 	else :
 		dict_count[NewName] = 1
 
@@ -62,7 +104,7 @@ def set_name(row, dict_count) :
 ##########################################################################################
 
 
-def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
+def extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file):
 
 	"""
 	This function is used to select the sequence identified by MacSyFinder and
@@ -75,6 +117,8 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 	:type: str
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.read_protein_function()
 	:type: dict
+	:param config_file: the name of the config file of macsyfinder
+	:type: str
 	:return: A dataframe corresponding to the report with only the protein I want and with a new columns with the new name.
 	:rtype: Pandas.Dataframe
 	"""
@@ -98,19 +142,25 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION):
 	# NOTE New name : AAAAKKK.B.LLLLL_numero de systeme[_Num(nombre de fois nom trouvé)]_nomSysteme_D_nomProteine (for 2016 gembase format)
 	# NOTE New name : NC_XXXXXX[_numero de systeme si deux systemes trouvés][_Num(nombre de fois nom trouvé)]_nomSysteme_D_nomProteine (for 2015 gembase format)
 	# NOTE New name : NNNN[_numero de systeme si deux systemes trouvés][_Num(nombre de fois nom trouvé)]_nomSysteme_V_nomProteine (for 2013 gembase format)
+
+	list_systems = new_report_table.Predicted_system.unique().tolist()
+	list_systems.remove("generic")
+	SystemParser(Config(config_file=config_file, out_dir="tmp"), system_bank, gene_bank).parse(list_systems)
+
 	dict_count = {}
 	new_report_table["NewName"] = new_report_table.apply(set_name, args=[dict_count], axis=1)
 	new_report_table["NewName"] = new_report_table.apply(lambda x: x.NewName if ("_Num" in x.NewName or dict_count[x.NewName] == 1) else "{}_Num1_{}".format("_".join(x.NewName.split("_")[:2]), "_".join(x.NewName.split("_")[2:])), axis=1)
 
-	# XXX Je crée une table de traduction entre mon nom et le nom générique de la séquence et je change les nouveaux nom pour le nom final
-	new_report_table.loc[:,["Hit_Id","NewName"]].to_csv(os.path.join(INFO, "translation_table_detected.tab"),sep="\t", index=False)
+	# XXX Je crée une table de traduction entre mon nom et le nom générique de la séquence et je change les nouveaux nom pour le nom final plus le gene pour avoir l'information du changement de nom
+	new_report_table.loc[:,["Hit_Id","NewName", "Gene"]].to_csv(os.path.join(INFO, "translation_table_detected.tab"),sep="\t", index=False)
 
+	os.removedirs("tmp")
 	return new_report_table
 
 ##########################################################################################
 ##########################################################################################
 
-def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
+def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION, config_file):
 
 	"""
 	This function is used to create the fasta with MacSyFinder hits found
@@ -125,13 +175,15 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION):
 	:type: str
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
 	:type: dict
+	:param config_file: the name of the config file of macsyfinder
+	:type: str
 	:return: The report table with the new name at the end
 	:rtype: pandas.DataFrame
 	"""
 
 	list_handle = [open(my_file,"w") for my_file in listOfFile]
 
-	report_table = extract_protein(fileReport, INFO, PROTEIN_FUNCTION)
+	report_table = extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file)
 	seqiter = SeqIO.parse(open(fileFasta), 'fasta')
 
 	print("\n-----------------")
@@ -225,7 +277,7 @@ def write_fasta_multithreads(fileFasta, listOfFile, wanted, PROTEIN_FUNCTION, nu
 ##########################################################################################
 ##########################################################################################
 
-def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION, nb_thread):
+def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION, nb_thread, config_file):
 
 	"""
 	This function is used to create the fasta with MacSyFinder hits found
@@ -242,13 +294,15 @@ def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEI
 	:type: dict
 	:param nb_thread: number of thread choose by the user
 	:type: int
+	:param config_file: the name of the config file of macsyfinder
+	:type: str
 	:return: The report table with the new name at the end
 	:rtype: pandas.DataFrame
 	"""
 
 	nb_fasta = len(folderFasta)
 
-	new_report_table = extract_protein(fileReport, INFO, PROTEIN_FUNCTION)
+	new_report_table = extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file)
 	nb_replicon_wanted = len(set(new_report_table.Replicon_name))
 
 	print()
@@ -298,7 +352,7 @@ def find_in_fasta_multithreads(folderFasta, fileReport, listOfFile, INFO, PROTEI
 ##########################################################################################
 ##########################################################################################
 
-def set_validated_newname(row, dict_count, problem, df_translate=pd.DataFrame()):
+def set_validated_newname(row, dict_count):
 
 	"""
 	Function that set the name of validated sequences
@@ -307,28 +361,16 @@ def set_validated_newname(row, dict_count, problem, df_translate=pd.DataFrame())
 	:type: pandas.Series
 	:param dict_count: a dictionnary that will contain all the newname set to know if the newname is set yet.
 	:type: dict
-	:param problem: value to know if df_translate exist (more or less)
-	:type: bool
-	:param df_translate: a dataframe that contain the name of some validated systeme that are in 2 copy in the same genome
-	:type: pandas.DataFrame
 	:return: the newname set
 	:rtype: str
 	"""
 
-	tmp_replicon = row.NewRepliconName.split("_")[0]
-
-	if problem and row.SystID in list(df_translate.index) and df_translate.loc[row.SystID, "Num"] >= 2:
-		num_tmp = df_translate.loc[row.SystID, "Num"]
-		tmp_replicon = "{}_{}".format(tmp_replicon, num_tmp)
-	else :
-		tmp_replicon = "{}_{}".format(tmp_replicon, 1)
-		num_tmp = 1
-
-	NewName = "{}_{}_V_{}".format(tmp_replicon, row.SystID.split("_")[-1], "_".join(row.Gene.split("_")[1:]))
+	REPLICON_SYSTEM_NUMBER = "{}_{}".format(row.Replicon_name, row.System_Id.split("_")[-2])
+	NewName = "{}_{}_V_{}".format(REPLICON_SYSTEM_NUMBER, row.System_name, "_".join(row.Gene.split("_")[1:]))
 
 	if NewName in dict_count :
 		dict_count[NewName] += 1
-		NewName = "{}_Num{}_{}_V_{}".format(tmp_replicon, dict_count[NewName], row.SystID.split("_")[-1], "_".join(row.Gene.split("_")[1:]))
+		NewName = "{}_Num{}_{}_V_{}".format(REPLICON_SYSTEM_NUMBER, dict_count[NewName], row.System_name, "_".join(row.Gene.split("_")[1:]))
 	else :
 		dict_count[NewName] = 1
 
@@ -363,7 +405,7 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 	print("# Validated Fasta")
 	print("#################\n")
 
-	report_like = pd.DataFrame(columns=["System_Id","Gene"])
+	report_like = pd.DataFrame(columns=["NewName","Hit_Id","Replicon_name","Sequence_length","Gene", "Reference_system", "Predicted_system","System_Id"])
 
 	list_handle = [open(my_file, 'w') for my_file in listOfFile]
 	dict_count = {}
@@ -371,8 +413,10 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 	w_file = open(os.path.join(INFO, "translation_table_validated.tab"), 'w')
 	w_file.write("#Name_fasta_file\tNew_name\n")
 
-	info_extract = pd.read_table(info_dat, index_col=0, names=["Gene","System","SystID","Family","Note","Note2","NewRepliconName"], comment="#")
+	# NOTE Ici à l'importation des données, je ne donne pas de nom à la première colonne du .dat donc il prend la première colonne en tant qu'index
+	info_extract = pd.read_table(info_dat, index_col=0, names=["Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Kingdom", "Phylum", "Notes"], comment="#")
 
+	"""
 	# XXX Ce fichier est juste là car j'ai un soucis de plus d'un système par systèmes validés
 	problem = False
 	if os.path.exists("/Users/rdenise/Documents/de_sophie_a_remi/pour_remi/experiment_validated_systems/verifed_duplicata.txt") :
@@ -380,18 +424,20 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 		problem = True
 	else :
 		print("There is only one system by replicon")
+	"""
 
 	progression=1
 
-	info_extract['Gene'] = info_extract.apply(lambda x: "{}_{}".format(x.System, x.Gene) if x.Gene.split("_")[0] not in ['T2SS','T4P', 'Tad', "Com"] else x.Gene, axis=1)
 	info_extract = info_extract[info_extract.Gene.isin(PROTEIN_FUNCTION)]
-	df_newname = info_extract.apply(set_validated_newname, args=[dict_count, problem, df_translate], axis=1)
+	df_newname = info_extract.apply(set_validated_newname, args=[dict_count], axis=1)
 	df_newname = df_newname.apply(lambda x: x if ("_Num" in x or dict_count[x] == 1) else "{}_Num1_{}".format("_".join(x.split("_")[:2]), "_".join(x.split("_")[2:])))
 	df_newname.reset_index().to_csv(w_file, sep="\t", index=False, header=False)
 
 	#Pour facilité le loc après
 	df_newname = df_newname.to_frame()
 	df_newname.columns = ["NewName"]
+
+	#df_newname.to_excel("pb_count.xlsx")
 
 	seqiter = SeqIO.parse(data_fasta, "fasta")
 	for seq in seqiter :
@@ -404,7 +450,7 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 			# IDEA pour faire un truc général je pourrais par exemple crée la liste à partir du fichier de definition de protein_function.def
 			writing_file = re.search("[a-zA-Z0-9/_]+{}\.fasta".format(PROTEIN_FUNCTION[info_extract.loc[seq.id, "Gene"]]), "\t".join(listOfFile)).group(0)
 
-			gene_tmp = info_extract.loc[seq.id, "Gene"]
+			old_name = seq.id
 
 			seq.id = df_newname.loc[seq.id, 'NewName']
 			seq.name = ""
@@ -415,9 +461,15 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 			NewName_split = seq.id.split("_")
 			index_V = NewName_split.index("V")
 			report_like.loc[-1, "NewName"] = seq.id
-			report_like.loc[-1, "System_Id"] = "{}_{}_{}_V".format(NewName_split[0], NewName_split[index_V-1], NewName_split[1])
-			report_like.loc[-1, "Gene"] = gene_tmp
+			report_like.loc[-1, "Hit_Id"] = old_name
+			report_like.loc[-1, "Sequence_length"] = len(seq.seq)
+			report_like.loc[-1, "System_Id"] = info_extract.loc[old_name, "System_Id"]
+			report_like.loc[-1, "Replicon_name"] = info_extract.loc[old_name, "Replicon_name"]
+			report_like.loc[-1, 'Predicted_system'] = info_extract.loc[old_name, "System_name"]
+			report_like.loc[-1, 'Reference_system'] = info_extract.loc[old_name, "System_name"]
+			report_like.loc[-1, "Gene"] = info_extract.loc[old_name, "Gene"]
 			report_like.index = report_like.index+1
+
 
 	report_like.reset_index(drop=True, inplace=True)
 
@@ -429,11 +481,13 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 
 	# XXX On ferme le fichier de translation_table
 	w_file.close()
-	report_like.to_csv(os.path.join(INFO, "report_modif", "validated.report"),sep="\t", index=False)
+	report_like.to_csv(os.path.join(INFO, "report_modif", "validated_tmp.report"),sep="\t", index=False)
 	return report_like
+
 
 ##########################################################################################
 ##########################################################################################
+
 
 def write_remove_cutoff(dict_remove, INFO_folder):
 
