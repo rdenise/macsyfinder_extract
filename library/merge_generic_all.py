@@ -12,6 +12,7 @@ import numpy as np
 import sys
 import os
 import pandas as pd
+import subprocess
 from set_params import create_folder
 
 ##########################################################################################
@@ -22,7 +23,7 @@ from set_params import create_folder
 ##########################################################################################
 ##########################################################################################
 
-def write_merge_file(generic_report_file, all_report_file, write_file) :
+def write_merge_file_old(generic_report_file, all_report_file, write_file) :
 
 	"""
 	Function that write a new file that is the association of the two file without line
@@ -75,7 +76,7 @@ def write_merge_file(generic_report_file, all_report_file, write_file) :
 					w_file.write(line)
 
 			report_generic = report_generic[~report_generic.System_Id.isin(list_not_generic)]
-			report_generic.to_csv(w_file, sep="\t", header=False, index=False,	)
+			report_generic.to_csv(w_file, sep="\t", header=False, index=False)
 
 	print()
 
@@ -83,8 +84,54 @@ def write_merge_file(generic_report_file, all_report_file, write_file) :
 	putative_summary_generic = generic_report_file.replace("report", "summary")
 
 	if os.path.exists(putative_summary_all) and os.path.exists(putative_summary_generic) :
-		os.system("cat {} > {}".format(putative_summary_all, write_file.replace("report", "summary")))
+		status = subprocess.call("cat {} > {}".format(putative_summary_all, write_file.replace("report", "summary")), shell=True)
 		write_summary_file(putative_summary_generic, list(report_generic.System_Id), write_file.replace("report", "summary"))
+
+	return
+
+##########################################################################################
+##########################################################################################
+
+def write_merge_file(generic_report_file, all_report_file, write_file) :
+
+	"""
+	Function that write a new file that is the association of the two file without line
+	that are present in both
+
+	:param generic_report_file: name of the macsyfinder report for generique.xml
+	:type: str
+	:param all_report_file: name of the macsyfinder report for T2SS.xml, T4P.xml, Tad.xml, Archaellum.xml
+	:type: str
+	:param write_file: name of the file we want to write
+	:type: str
+	"""
+
+	length = len(open(all_report_file, 'rt').readlines())
+	list_not_generic = []
+
+	with open(write_file, 'w') as w_file :
+
+		names_dataframe=['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
+		report_generic = pd.read_table(generic_report_file, names=names_dataframe, dtype="str")
+		report_other = pd.read_table(all_report_file, names=names_dataframe, dtype="str")
+
+		list_not_generic = report_generic[report_generic.Hit_Id.isin(report_other.Hit_Id)].System_Id.unique()
+
+		report_generic = report_generic[~report_generic.System_Id.isin(list_not_generic)]
+
+		report_concat = pd.concat([report_other, report_generic])
+		report_concat.sort_values(['System_Id', 'Hit_Id'], inplace=True)
+
+		report_concat.to_csv(w_file, sep="\t", header=False, index=False)
+
+	putative_summary_all = all_report_file.replace("report", "summary")
+	putative_summary_generic = generic_report_file.replace("report", "summary")
+
+	if os.path.exists(putative_summary_all) and os.path.exists(putative_summary_generic) :
+		status = subprocess.call("cat {} > {}".format(putative_summary_all, write_file.replace("report", "summary")), shell=True)
+		write_summary_file(putative_summary_generic, list(report_generic.System_Id), write_file.replace("report", "summary"))
+
+	print("\nDone!")
 
 	return
 

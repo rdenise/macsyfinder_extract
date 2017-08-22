@@ -130,11 +130,15 @@ merge_parser.add_argument("-or",'--other_report',
 							default=None,
 							required=True,
 							help="File with the 'classic' systems")
+merge_parser.add_argument("-ar",'--archaea_report',
+							metavar=("<ARCHAEA_REPORT>"),
+							dest="archaea_report",
+							default=None,
+							help="File with the 'generic' systems")
 merge_parser.add_argument("-gr",'--generic_report',
 							metavar=("<GENERIC_REPORT>"),
 							dest="generic_report",
 							default=None,
-							required=True,
 							help="File with the 'generic' systems")
 
 # TODO Peut être entre tous les systèmes prendre celui qui a le plus de gènes ? et non pas le premier. Mais du coup fait faire plus de calculs.
@@ -142,12 +146,39 @@ merge_parser.add_argument("-gr",'--generic_report',
 args = parser.parse_args()
 
 if "other_report" in args :
+
 	fileAll = os.path.abspath(args.other_report)
-	fileGeneric = os.path.abspath(args.generic_report)
 
-	fileWrite = os.path.join(os.path.dirname(os.path.dirname(fileGeneric)),"merge_macsyfinder.report")
+	if "archaea_report" not in args and "generic_report" not in args :
+		sys.exit(dedent("""usage: sequence_extractor.py merge -or <OTHER_REPORT>,
+		[-ar <ARCHAEA_REPORT>],
+		[-gr >GENERIC_REPORT>]
+		sequence_extractor.py: error: one of this arguments are required: -ar/--archaea_report, -gr/--generic_report"""))
 
-	write_merge_file(fileGeneric, fileAll, fileWrite)
+
+	if "archaea_report" in args and args.archaea_report:
+
+		print("----------------------")
+		print("| Merging with archeae")
+		print("----------------------")
+
+		fileArchaea = os.path.abspath(args.archaea_report)
+		fileWrite = os.path.join(os.path.dirname(os.path.dirname(fileArchaea)),"merge_macsyfinder_archaea.report")
+
+		write_merge_file(fileArchaea, fileAll, fileWrite)
+		fileAll = fileWrite
+
+	if "generic_report" in args and args.generic_report :
+
+		print("----------------------")
+		print("| Merging with generic")
+		print("----------------------")
+
+		fileGeneric = os.path.abspath(args.generic_report)
+		fileWrite = os.path.join(os.path.dirname(os.path.dirname(fileGeneric)),"merge_macsyfinder.report")
+
+		write_merge_file(fileGeneric, fileAll, fileWrite)
+
 
 	print("\n#################")
 	print("# File merged")
@@ -370,31 +401,52 @@ if args.stats or args.stats_only:
 
 	# XXX dataframe avec les counts pour chaques types de protéines je pense pas que je l'utilise après donc pas la peine de récupéré le dataframe
 	# NOTE Ici pour les deux dataframes j'inclus les verifiés car ils font partis du DICT_INFO. Je pense que je vais enlever les verifiés car ils sont inutiles ici.
+	print("\n\t- Creating count DataFrame for the proteines...", end='\t')
 	df_count = count_all(df_info_detected, PROTEIN_FUNCTION, PATH_TO_DATAFRAME, DICT_SPECIES)
+	print("Done !")
 
 	# XXX Dataframe avec le compte pour tous les systemes donc utile pour la suite des "stats"
+	print("\n\t- Creating count DataFrame for the systems...", end='\t')
 	df_systems = systems_count(df_info_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
+	print("Done !")
 
 	print()
 	print('Figure in process ...')
 
 	# XXX premiere figure
+	print("\n\t- Creating the figure with the proportion of phylum...", end='\t')
 	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, df_info_detected)
+	print("Done !")
 
 	# XXX Deuxieme figure
+	print("\n\t- Creating the figure with the proportion of systems...", end='\t')
 	proportion_systems(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, out_file)
+	print("Done !")
 
 	# XXX Troisieme figure
+	print("\n\t- Creating the figure with the proportion of Proteobacteria...", end='\t')
 	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_info_detected, df_systems.columns)
+	print("Done !")
 
 	# XXX Les dataframes en couleurs
+	print("\n\t- Creating the color in the dataframe of count of systems...", end='\t')
 	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, ANNOTATION, out_file)
+	print("Done !")
 
 	# XXX Information sur les detection de systems validés
 	if args.veriFile :
+		print("\n\t- Creating the figure with the identification of validated systems in the detected systems...", end='\t')
 		validated_stats(veriData, REPORT, args.config_file, os.path.join(PATH_TO_DATAFRAME, "figure"), INFO)
+		print("Done !")
 
 	out_file.close()
+
+	# XXX Figure sur la distribution de toutes les protéines des systèmes
+	print("\n\t- Creating the figure of the distribution of the kind of proteins in the systems...", end='\t')
+	df_found = read_systems_found(os.path.join(INFO,"systems_found.names"))
+	dict_protein = set_dict_protein(args.defFile)
+	plot_protein_distribution(df_found, os.path.join(PATH_TO_DATAFRAME, "figure"), dict_protein)
+	print("Done !")
 
 	print()
 	print("Done!")

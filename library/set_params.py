@@ -231,3 +231,47 @@ def create_dict_distance(file_distance):
 	distance_df = pd.read_table(file_distance, comment="#", index_col=0, names=["distance"])
 
 	return distance_df.distance.to_dict()
+
+##########################################################################################
+##########################################################################################
+
+def read_systems_found(systems_found_file):
+
+    """
+    Read .names of macsyfinder_extract and created a dataframe with the rigth type on each columns
+
+    :param systems_found_file: Name of the macsyfinder_extract systems_found.names file
+    :type: str
+    :return: the dataframe completed
+    :rtype: pandas.Dataframe
+    """
+
+    names_dataframe=["Species_Id","Replicon_Id","System_name","System_status","System_number","Proteins","Kingdom","Phylum","Lineage"]
+    summary_df = pd.read_table(systems_found_file, names=names_dataframe, comment="#")
+    summary_df.ix[:,5]=summary_df.ix[:,5].apply(eval)
+
+    return summary_df
+
+##########################################################################################
+##########################################################################################
+
+def set_dict_protein(file_protein_wanted):
+
+    """
+    Set the dictionary of protein wanted in the analysis
+
+    :param file_protein_wanted: the name of the file protein_function.def that is a tsv file with the name of the protein function in the first column and the name of the protein in the other ones
+    :type: str
+    :return: a dictionary with the name of all the protein of the analysis in value and the function of the protein as key
+    :rtype: dict
+    """
+
+    with open(file_protein_wanted, "r") as r_file :
+        #Je fais des lignes sans \n
+        split_file = r_file.read().splitlines()
+        #Je split les lignes totalement ex : [ATPase, pilA, ...]
+        split_file = [line.split() for line in split_file if not line.startswith("#")]
+        #Je crée mon dictionaire
+        dict_protein = {line[0]:sorted(line[1:]) for line in split_file}
+
+    return dict_protein

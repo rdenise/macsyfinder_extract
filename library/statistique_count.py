@@ -669,5 +669,48 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 			count_and_write_system_found_protein_step1(group, w_file)
 
 
-	print("Done!")
+	return
+
+##########################################################################################
+##########################################################################################
+
+def plot_protein_distribution(summary_df, folder, dict_protein):
+
+    """
+    Create the distribution plot of the number of genes by systems detected
+
+    :param summary_df: the dataframe create by read_summary
+    :type: pandas.dataframe
+    :param folder: the folder where the figure will be write
+    :type: str
+    :param dict_protein: the proteins of interest set by set_dict_protein()
+    :type: dict
+    """
+
+	df_found_modif_less_generic = summary_df[summary_df.System_name != "generic"].reset_index(drop=True)
+	df_found_modif_less_generic = df_found_modif_less_generic[df_found_modif_less_generic.System_status != "V"].reset_index(drop=True)
+
+    pdf_pages = PdfPages(os.path.join(folder, "distribution_proteins_less_generic.pdf"))
+
+    for key in dict_protein :
+        set_name_protein_page(key, pdf_pages)
+        for my_protein in dict_protein[key] :
+            # Petit test car Archeallum toujours dans mon dictionnaire mais je n'aurais aucun hit de toute façon donc ça bug
+            if 'Archaellum' not in my_protein:
+                series_count = pd.Series([line.Proteins[my_protein] for index, line in summary_df.iterrows() if my_protein in line.Proteins])
+
+                ax = sns.countplot(series_count)
+                sns.despine(offset=10, trim=True, bottom=True)
+                ax.set_xlabel("Occurence of proteins")
+                ax.set_ylabel("Number of systems")
+                ax.set_title("Distribution of the {}".format(my_protein))
+                for p in ax.patches:
+                    x=p.get_bbox().get_points()[:,0]
+                    y=p.get_bbox().get_points()[1,1]
+                    ax.annotate('{}'.format(int(y)), (x.mean(), y),
+                            ha='center', va='bottom')
+                pdf_pages.savefig()
+                plt.close('all')
+
+    pdf_pages.close()
 	return
