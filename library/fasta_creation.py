@@ -20,6 +20,7 @@ import glob
 from multiprocessing import Pool
 import subprocess
 import shlex
+import time
 from set_params import *
 
 from macsypy.config import Config
@@ -145,7 +146,8 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file):
 
 	list_systems = new_report_table.Predicted_system.unique().tolist()
 	list_systems.remove("generic")
-	SystemParser(Config(config_file=config_file, out_dir="tmp"), system_bank, gene_bank).parse(list_systems)
+	out_tmp = "tmp_{}".format(time.strftime("%Y%m%d"))
+	SystemParser(Config(cfg_file=config_file, out_dir=out_tmp), system_bank, gene_bank).parse(list_systems)
 
 	dict_count = {}
 	new_report_table["NewName"] = new_report_table.apply(set_name, args=[dict_count], axis=1)
@@ -154,7 +156,7 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file):
 	# XXX Je crée une table de traduction entre mon nom et le nom générique de la séquence et je change les nouveaux nom pour le nom final plus le gene pour avoir l'information du changement de nom
 	new_report_table.loc[:,["Hit_Id","NewName", "Gene"]].to_csv(os.path.join(INFO, "translation_table_detected.tab"),sep="\t", index=False)
 
-	os.removedirs("tmp")
+	shutil.rmtree(out_tmp)
 	return new_report_table
 
 ##########################################################################################
@@ -237,6 +239,8 @@ def write_fasta_multithreads(fileFasta, listOfFile, wanted, PROTEIN_FUNCTION, nu
 	:type: pandas.Dataframe
 	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
 	:type: dict
+	:param number_total: total number of Replicon
+	:type: int
 	:return: Nothing
 	'''
 
@@ -414,7 +418,7 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 	w_file.write("#Name_fasta_file\tNew_name\n")
 
 	# NOTE Ici à l'importation des données, je ne donne pas de nom à la première colonne du .dat donc il prend la première colonne en tant qu'index
-	info_extract = pd.read_table(info_dat, index_col=0, names=["Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Kingdom", "Phylum", "Notes"], comment="#")
+	info_extract = pd.read_table(info_dat, index_col=0, names=["Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Species_name", "Kingdom", "Phylum", "Notes"], comment="#")
 
 	"""
 	# XXX Ce fichier est juste là car j'ai un soucis de plus d'un système par systèmes validés
@@ -437,7 +441,7 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 	df_newname = df_newname.to_frame()
 	df_newname.columns = ["NewName"]
 
-	#df_newname.to_excel("pb_count.xlsx")
+	#df_newname.to_excel("pb_count_2.xlsx")
 
 	seqiter = SeqIO.parse(data_fasta, "fasta")
 	for seq in seqiter :
@@ -482,6 +486,7 @@ def create_validated_fasta(listOfFile, PROTEIN_FUNCTION, data_fasta, info_dat, I
 	# XXX On ferme le fichier de translation_table
 	w_file.close()
 	report_like.to_csv(os.path.join(INFO, "report_modif", "validated_tmp.report"),sep="\t", index=False)
+
 	return report_like
 
 

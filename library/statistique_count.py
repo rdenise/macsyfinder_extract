@@ -18,7 +18,8 @@ import glob
 import json
 from weasyprint import HTML
 from Bio import SeqIO
-
+import shutil
+import time
 from set_params import *
 
 from macsypy.config import Config
@@ -32,7 +33,8 @@ from macsypy.config import Config
 ##########################################################################################
 
 sns.set_style("ticks")
-sns.set_context("talk")
+#sns.set_context("talk")
+sns.set_context("paper")
 
 ##########################################################################################
 ##########################################################################################
@@ -553,8 +555,7 @@ def count_and_write_system_found_protein_step2(group, w_file) :
 
 	w_file.write("There is {}/{} proteins validated detected by macsyfinder\n\nThe list of the proteins will be below :\n------------------------------------------\n".format(sum(group.Protein_found), group.shape[0]))
 
-	group[["SeqId", "System_Id", "System_name", "Gene", "Protein_found
-	"]].to_csv(w_file, sep='\t', index=False)
+	group[["SeqId", "System_Id", "System_name", "Gene", "Protein_found"]].to_csv(w_file, sep='\t', index=False)
 	w_file.write("\n")
 
 	return
@@ -613,11 +614,15 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 	print("| Validated System Stats")
 	print("------------------\n")
 
-	all_xml = glob.glob(os.path.join(Config(config_file=config_file, out_dir="tmp").profile_dir, "*hmm"))
+	# XXX Pour avoir le chemin des hmm
+	out_tmp = "tmp_{}".format(time.strftime("%Y%m%d"))
+	all_xml = glob.glob(os.path.join(Config(cfg_file=config_file, out_dir=out_tmp).profile_dir, "*hmm"))
+	shutil.rmtree(out_tmp)
+
 	list_profiles = [os.path.basename(profile)[:-4] for profile in all_xml]
 
 	# XXX On importe le dataframe et on le reduit sur seulement les systems presents dans gembases
-	df_dat_validated = pd.read_table(dat_validated, names=["SeqId", "Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Kingdom", "Phylum", "Notes"], comment="#")
+	df_dat_validated = pd.read_table(dat_validated, names=["SeqId", "Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Species_name", "Kingdom", "Phylum", "Notes"], comment="#")
 	df_dat_validated = df_dat_validated[df_dat_validated.In_gembases == "Yes"].reset_index(drop=True)
 	df_dat_validated = df_dat_validated[df_dat_validated.Gene.isin(list_profiles)].reset_index(drop=True)
 
@@ -631,9 +636,22 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 	System_found.columns = ["System_Id", "Found"]
 	System_found["System_name"] = df_dat_validated.groupby("System_Id", group_keys=False).apply(lambda x: x.System_name.unique()[0]).reset_index(drop=True)
 
-	sns.countplot(x="Found", hue="System_name", data=System_found)
-	sns.despine(offset=10, trim=True)
-	plt.savefig(os.path.join(PATH_TO_FIGURE,"numbers_system_validated_found.pdf"))
+	# XXX Plot
+	my_plot = sns.factorplot(x="System_name",
+				   hue="Found",
+				   data=System_found,
+				   kind="count",
+				   palette="Blues",
+				   legend_out=False,
+				   size=4,
+				   aspect=1.5)
+
+	# XXX Mise en forme
+	my_plot.despine(offset=10, trim=True)
+	plt.title("Number of validated system found")
+	plt.xlabel("System")
+	plt.ylabel("Number")
+	my_plot.savefig(os.path.join(PATH_TO_FIGURE,"numbers_system_validated_found.pdf"))
 	plt.close('all')
 
 	System_found.sort_values(by="System_name", inplace=True)
@@ -650,7 +668,6 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 		for index, group in groups :
 			count_and_write_system_found_protein_step1(group, w_file)
 
-	os.removedirs("tmp")
 
 	print("Done!")
 	return
