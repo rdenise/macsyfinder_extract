@@ -611,10 +611,6 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 	"""
 
 
-	print("\n------------------")
-	print("| Validated System Stats")
-	print("------------------\n")
-
 	# XXX Pour avoir le chemin des hmm
 	out_tmp = "tmp_{}".format(time.strftime("%Y%m%d"))
 	all_xml = glob.glob(os.path.join(Config(cfg_file=config_file, out_dir=out_tmp).profile_dir, "*hmm"))
@@ -671,6 +667,41 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 
 
 	return
+
+##########################################################################################
+##########################################################################################
+
+def set_name_protein_page(name, pdf) :
+
+    """
+    Create a figure with the name of the protein in the middle
+
+    :param name: name of the function of the protein
+    :type: str
+    :param pdf: open pdf file where the figures will be write
+    :type: matplotlib.backends.backend_pdf.PdfPages
+    """
+
+    # build a rectangle in axes coords
+    left, width = .25, .5
+    bottom, height = .25, .5
+    right = left + width
+    top = bottom + height
+
+    fig = plt.figure()
+    ax = fig.add_axes([0,0,1,1])
+
+    sns.despine(left=True, bottom=True)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.text(0.5*(left+right), 0.5*(bottom+top), name.title(),
+            horizontalalignment='center',
+            verticalalignment='center',
+            fontsize=60,
+            transform=ax.transAxes)
+
+    pdf.savefig()
+    plt.close('all')
 
 ##########################################################################################
 ##########################################################################################

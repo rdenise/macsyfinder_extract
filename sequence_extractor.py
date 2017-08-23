@@ -429,13 +429,19 @@ if args.stats or args.stats_only:
 	print("Done !")
 
 	# XXX Les dataframes en couleurs
-	print("\n\t- Creating the color in the dataframe of count of systems...", end='\t')
+	print("\n\t- Creating the color in the dataframe of count of systems...", end='\n')
 	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, ANNOTATION, out_file)
 	print("Done !")
 
 	# XXX Information sur les detection de systems validés
 	if args.veriFile :
+
+    	print("\n------------------")
+    	print("| Validated System Stats")
+    	print("------------------\n")
+
 		print("\n\t- Creating the figure with the identification of validated systems in the detected systems...", end='\t')
+
 		validated_stats(veriData, REPORT, args.config_file, os.path.join(PATH_TO_DATAFRAME, "figure"), INFO)
 		print("Done !")
 
