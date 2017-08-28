@@ -531,7 +531,7 @@ def count_and_write_system_found(group, w_file) :
 
 	w_file.write("There is {}/{} systems validated detected by macsyfinder\n\nThe list of the systems will be below :\n------------------------------------------\n".format(sum(group.Found), group.shape[0]))
 
-	group.to_csv(w_file, sep='\t', index=False)
+	group.to_csv(w_file, sep='\t', index=False, na_rep=".")
 	w_file.write("\n")
 
 	return
@@ -554,9 +554,9 @@ def count_and_write_system_found_protein_step2(group, w_file) :
 	w_file.write("{}\n".format(group.System_Id.unique()[0]))
 	w_file.write("=======================\n\n")
 
-	w_file.write("There is {}/{} proteins validated detected by macsyfinder\n\nThe list of the proteins will be below :\n------------------------------------------\n".format(sum(group.Protein_found), group.shape[0]))
+	w_file.write("There is {}/{} proteins validated detected by macsyfinder\n\nThe list of the proteins will be below :\n------------------------------------------\n".format(sum(group.Protein_found_total), group.shape[0]))
 
-	group[["SeqId", "System_Id", "System_name", "Gene", "Protein_found"]].to_csv(w_file, sep='\t', index=False)
+	group[["SeqId", "System_Id", "System_name", "Gene", "Protein_found_total"]].to_csv(w_file, sep='\t', index=False)
 	w_file.write("\n")
 
 	return
@@ -627,11 +627,18 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 	names_dataframe=['Hit_Id','Replicon_name','Position','Sequence_length','Gene','Reference_system','Predicted_system','System_Id','System_status','Gene_status','i-evalue','Score','Profile_coverage','Sequence_coverage','Begin_match','End_match']
 	df_report_deteted = pd.read_table(report_detected, names=names_dataframe, dtype="str", comment="#")
 	df_report_deteted = df_report_deteted[df_report_deteted.Replicon_name.isin(df_dat_validated.Replicon_name)].reset_index(drop=True)
+	dict_predicted = df_report_deteted[df_report_deteted.Hit_Id.isin(df_dat_validated.SeqId)].set_index("Hit_Id").Predicted_system.to_dict()
 
-	df_dat_validated["Protein_found"] = df_dat_validated.SeqId.isin(df_report_deteted.Hit_Id)
+	# Avec generic
+	df_dat_validated["Protein_found_total"] = df_dat_validated.SeqId.isin(df_report_deteted.Hit_Id)
+	df_dat_validated["Predicted_system"] = df_dat_validated[df_dat_validated.SeqId.isin(df_report_deteted.Hit_Id)].apply(lambda x: dict_predicted[x.SeqId], axis=1)
+	# Sans generic
+	df_dat_validated["Protein_found"] = df_dat_validated.SeqId.isin(df_report_deteted[df_report_deteted.Predicted_system != "generic"].Hit_Id)
+
 	System_found = df_dat_validated.groupby("System_Id", group_keys=False).apply(lambda x: True if sum(x.Protein_found) else False).reset_index()
 	System_found.columns = ["System_Id", "Found"]
 	System_found["System_name"] = df_dat_validated.groupby("System_Id", group_keys=False).apply(lambda x: x.System_name.unique()[0]).reset_index(drop=True)
+	System_found["System_predicted"] = df_dat_validated.groupby("System_Id", group_keys=False).apply(lambda x: x.Predicted_system.sort_values().unique()[0]).reset_index(drop=True)
 
 	# XXX Plot
 	my_plot = sns.factorplot(x="System_name",

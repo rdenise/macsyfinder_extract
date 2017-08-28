@@ -11,7 +11,6 @@
 from Bio import SeqIO
 import sys
 import numpy as np
-import rpy2.robjects as robjects
 import re
 import os
 import shutil
