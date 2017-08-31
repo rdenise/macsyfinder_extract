@@ -369,11 +369,11 @@ def set_validated_newname(row, dict_count):
 	"""
 
 	REPLICON_SYSTEM_NUMBER = "{}_{}".format(row.Replicon_name, row.System_Id.split("_")[-2])
-	NewName = "{}_{}_V_{}".format(REPLICON_SYSTEM_NUMBER, row.System_name, "_".join(row.Gene.split("_")[1:]))
+	NewName = "{}_{}_V_{}".format(REPLICON_SYSTEM_NUMBER, row.System_Id.split("_")[1], "_".join(row.Gene.split("_")[1:]))
 
 	if NewName in dict_count :
 		dict_count[NewName] += 1
-		NewName = "{}_Num{}_{}_V_{}".format(REPLICON_SYSTEM_NUMBER, dict_count[NewName], row.System_name, "_".join(row.Gene.split("_")[1:]))
+		NewName = "{}_Num{}_{}_V_{}".format(REPLICON_SYSTEM_NUMBER, dict_count[NewName], row.System_Id.split("_")[1], "_".join(row.Gene.split("_")[1:]))
 	else :
 		dict_count[NewName] = 1
 

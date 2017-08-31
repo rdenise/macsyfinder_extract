@@ -401,12 +401,12 @@ if args.stats or args.stats_only:
 
 	# XXX dataframe avec les counts pour chaques types de protéines je pense pas que je l'utilise après donc pas la peine de récupéré le dataframe
 	# NOTE Ici pour les deux dataframes j'inclus les verifiés car ils font partis du DICT_INFO. Je pense que je vais enlever les verifiés car ils sont inutiles ici.
-	print("\n\t- Creating count DataFrame for the proteines...", end='\t')
+	print("\n- Creating count DataFrame for the proteines...", end='\t')
 	df_count = count_all(df_info_detected, PROTEIN_FUNCTION, PATH_TO_DATAFRAME, DICT_SPECIES)
 	print("Done !")
 
 	# XXX Dataframe avec le compte pour tous les systemes donc utile pour la suite des "stats"
-	print("\n\t- Creating count DataFrame for the systems...", end='\t')
+	print("\n- Creating count DataFrame for the systems...", end='\t')
 	df_systems = systems_count(df_info_detected, PATH_TO_DATAFRAME, LIST_WANTED, DICT_SPECIES_WANTED)
 	print("Done !")
 
@@ -414,33 +414,33 @@ if args.stats or args.stats_only:
 	print('Figure in process ...')
 
 	# XXX premiere figure
-	print("\n\t- Creating the figure with the proportion of phylum...", end='\t')
+	print("\n- Creating the figure with the proportion of phylum...", end='\t')
 	proportion_phylum(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, df_info_detected)
 	print("Done !")
 
 	# XXX Deuxieme figure
-	print("\n\t- Creating the figure with the proportion of systems...", end='\t')
+	print("\n- Creating the figure with the proportion of systems...", end='\t')
 	proportion_systems(os.path.join(PATH_TO_DATAFRAME, "figure"), df_count, out_file)
 	print("Done !")
 
 	# XXX Troisieme figure
-	print("\n\t- Creating the figure with the proportion of Proteobacteria...", end='\t')
+	print("\n- Creating the figure with the proportion of Proteobacteria...", end='\t')
 	proportion_proteobacteria(os.path.join(PATH_TO_DATAFRAME, "figure"), df_info_detected, df_systems.columns)
 	print("Done !")
 
 	# XXX Les dataframes en couleurs
-	print("\n\t- Creating the color in the dataframe of count of systems...", end='\n')
+	print("\n- Creating the color in the dataframe of count of systems...", end='\n')
 	dataframe_color(os.path.join(PATH_TO_DATAFRAME, "data_color"), df_systems, DICT_SPECIES_WANTED, LIST_WANTED, ANNOTATION, out_file)
 	print("Done !")
 
 	# XXX Information sur les detection de systems validés
 	if args.veriFile :
 
-    	print("\n------------------")
-    	print("| Validated System Stats")
-    	print("------------------\n")
+		print("\n------------------")
+		print("| Validated System Stats")
+		print("------------------\n")
 
-		print("\n\t- Creating the figure with the identification of validated systems in the detected systems...", end='\t')
+		print("\n- Creating the figure with the identification of validated systems in the detected systems...", end='\t')
 
 		validated_stats(veriData, REPORT, args.config_file, os.path.join(PATH_TO_DATAFRAME, "figure"), INFO)
 		print("Done !")
@@ -448,7 +448,7 @@ if args.stats or args.stats_only:
 	out_file.close()
 
 	# XXX Figure sur la distribution de toutes les protéines des systèmes
-	print("\n\t- Creating the figure of the distribution of the kind of proteins in the systems...", end='\t')
+	print("\n- Creating the figure of the distribution of the kind of proteins in the systems...", end='\t')
 	df_found = read_systems_found(os.path.join(INFO,"systems_found.names"))
 	dict_protein = set_dict_protein(args.defFile)
 	plot_protein_distribution(df_found, os.path.join(PATH_TO_DATAFRAME, "figure"), dict_protein)

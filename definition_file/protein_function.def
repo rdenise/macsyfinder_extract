@@ -1,6 +1,6 @@
-ATPase	T2SS_gspE	T4P_pilB	T4P_pilT_pilU	Tad_tadA	Archaellum_FlaI    Com_comGA
-IMplatform	T2SS_gspF	T4P_pilC	Tad_tadB	Tad_tadC	Archaellum_FlaJ Com_comGB
-minorPilin	T2SS_gspH	T2SS_gspI	T2SS_gspJ	T2SS_gspK	T4P_pilI_pilV	Tad_tadE	Tad_tadF T4P_pilE T4P_fimT    Com_comGD   Com_comGE
-majorPilin	T2SS_gspG	T4P_pilA	Tad_flp	Archaellum_FlaB  Com_comGC
-prepilinPeptidase	T2SS_gspO	T4P_pilD	Tad_tadV	Archaellum_FlaK   Com_comC
+ATPase	T2SS_gspE	T4P_pilB	T4P_pilT_pilU	Tad_tadA	Archaellum_FlaI    ComM_comGA
+IMplatform	T2SS_gspF	T4P_pilC	Tad_tadB	Tad_tadC	Archaellum_FlaJ ComM_comGB
+minorPilin	T2SS_gspH	T2SS_gspI	T2SS_gspJ	T2SS_gspK	T4P_pilI_pilV	Tad_tadE	Tad_tadF T4P_pilE T4P_fimT    ComM_comGD   ComM_comGE
+majorPilin	T2SS_gspG	T4P_pilA	Tad_flp	Archaellum_FlaB  ComM_comGC
+prepilinPeptidase	T2SS_gspO	T4P_pilD	Tad_tadV	Archaellum_FlaK   ComM_comC
 secretin	T2SS_gspD	T4P_pilQ	Tad_rcpA
