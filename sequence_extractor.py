@@ -258,6 +258,9 @@ if not args.stats_only :
 	else :
 		report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc), args.config_file)
 
+	shutil.rmtree("tmp_{}_fasta".format(time.strftime("%Y%m%d")), ignore_errors=True)
+	shutil.rmtree("tmp_{}_fasta".format(time.strftime("%Y%m%d")), ignore_errors=True)
+
 # XXX Permet d'avoir un report plus complet avec plus d'information sur mes systemes seulement
 if not args.stats_only and args.annotation:
 

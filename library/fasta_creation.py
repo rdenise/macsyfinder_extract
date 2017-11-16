@@ -37,31 +37,32 @@ from macsypy.system_parser import SystemParser
 
 def get_right_name(gene_name, gene_system):
 	"""
-	Function that translate the name of all the genes homologues found in th analysis expect the gene of T4PArachaea.
+	Function that translate the name of all the genes homologues found in th analysis.
 	Could by more generic by asking the gene for the user or with a xml with the name of all the gene in the description not in homologs only.
 
 	:param gene_name: name of the gene to test
 	:type: str
-	:param gene_system: the instance of the systempredicted of the gene
+	:param gene_system: the instance of the system predicted of the gene
 	:type: macsypy.system.System
 	:return: the good name for the gene
 	:rtype: str
 
 	"""
 
-	try :
-		gene_system.get_gene(gene_name)
-	except KeyError :
-		if gene_system.name == 'T4PArchaea' :
-			return gene_name
-		else :
-			genes = system.mandatory_genes + system.accessory_genes
-			for gene in genes :
-				if gene.exchangeable :
-					homologs = gene.get_homologs()
-					for homolog in homologs :
-						if gene_name == homolog.name :
-							return gene.name
+	#if gene_name.split("_")[0] !=  gene_system.name:
+	ref_gene = gene_system.get_gene_ref(gene_system.get_gene(gene_name))
+
+	if ref_gene and ref_gene.exchangeable :
+		return ref_gene.name
+
+		'''
+		genes = gene_system.mandatory_genes + gene_system.accessory_genes
+		for gene in genes :
+			if gene.exchangeable :
+				homologs = gene.get_homologs()
+				for homolog in homologs :
+					if gene_name == homolog.name :
+						return gene.name'''
 	return gene_name
 
 
@@ -145,7 +146,7 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file):
 
 	list_systems = new_report_table.Predicted_system.unique().tolist()
 	list_systems.remove("generic")
-	out_tmp = "tmp_{}".format(time.strftime("%Y%m%d"))
+	out_tmp = "tmp_{}_fasta".format(time.strftime("%Y%m%d"))
 	SystemParser(Config(cfg_file=config_file, out_dir=out_tmp), system_bank, gene_bank).parse(list_systems)
 
 	dict_count = {}
@@ -155,7 +156,6 @@ def extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file):
 	# XXX Je crée une table de traduction entre mon nom et le nom générique de la séquence et je change les nouveaux nom pour le nom final plus le gene pour avoir l'information du changement de nom
 	new_report_table.loc[:,["Hit_Id","NewName", "Gene"]].to_csv(os.path.join(INFO, "translation_table_detected.tab"),sep="\t", index=False)
 
-	shutil.rmtree(out_tmp)
 	return new_report_table
 
 ##########################################################################################
@@ -185,6 +185,7 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION, con
 	list_handle = [open(my_file,"w") for my_file in listOfFile]
 
 	report_table = extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file)
+	shutil.rmtree("tmp_{}".format(time.strftime("%Y%m%d")))
 	seqiter = SeqIO.parse(open(fileFasta), 'fasta')
 
 	print("\n-----------------")
@@ -758,7 +759,7 @@ def concatenate_detected_validated(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_v
 			progression += 1
 
 			id_seq=seq.id.split("_")
-			id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")+1]))
+			id_seq=re.sub("Num[0-9]+_", "", "_".join(id_seq[:id_seq.index("D")+1]))
 
 			if id_seq in dict_remove :
 				continue
@@ -767,7 +768,7 @@ def concatenate_detected_validated(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_v
 				index=list_seq_validated.index(seq.seq)
 
 				id_seq_verif = list_id_validated[index].split("_")
-				id_seq_verif = re.sub("Num[0-9]_", "", "_".join(id_seq_verif[:id_seq_verif.index("V")+1]))
+				id_seq_verif = re.sub("Num[0-9]+_", "", "_".join(id_seq_verif[:id_seq_verif.index("V")+1]))
 
 				# NOTE dans le dictionnaire je met le système vérifié en premier, toutes les séquences du système identitique en deuxième et la séquence qui en est la cause en troisième
 				dict_remove[id_seq]=[id_seq_verif,[], seq.id]
@@ -814,7 +815,7 @@ def concatenate_detected_validated(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_v
 					progression += 1
 
 					id_seq=seq.id.split("_")
-					id_seq=re.sub("Num[0-9]_", "", "_".join(id_seq[:id_seq.index("D")+1]))
+					id_seq=re.sub("Num[0-9]+_", "", "_".join(id_seq[:id_seq.index("D")+1]))
 
 					if id_seq in dict_remove :
 						dict_remove[id_seq][1].append(seq)
@@ -832,7 +833,6 @@ def concatenate_detected_validated(fasta_name, PATH_FASTA_DETECTED, PATH_FASTA_v
 
 ##########################################################################################
 ##########################################################################################
-
 
 def concatenate_reduce(list_file_concatenated, PATH_FASTA_CONCATENATED_REMOVE_POOR, report_df_full, DICT_IMPORTANT_PROTEINS, info_folder, liste_detected_file = False, path_detected = False):
 
