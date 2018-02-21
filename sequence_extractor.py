@@ -230,6 +230,7 @@ else :
 
 REPORT = args.reportFile
 PROTEIN_FUNCTION = read_protein_function(args.defFile)
+DICT_SYSTEMS = create_dict_system(PROTEIN_FUNCTION)
 
 # XXX List of all the function name with .fasta add at the end
 all_function = np.unique([function+".fasta" for function in PROTEIN_FUNCTION.values()]).tolist()
@@ -261,15 +262,20 @@ if not args.stats_only :
 	shutil.rmtree("tmp_{}_fasta".format(time.strftime("%Y%m%d")), ignore_errors=True)
 	shutil.rmtree("tmp_{}_fasta".format(time.strftime("%Y%m%d")), ignore_errors=True)
 
-# XXX Permet d'avoir un report plus complet avec plus d'information sur mes systemes seulement
-if not args.stats_only and args.annotation:
+
+if os.path.isfile(os.path.join(INFO, "systems_found.names")) :
+	# XXX Permet ici de savoir si j'ai déjà mon fichier donc pas besoins de le refaire
+	df_info_detected = pd.read_table(os.path.join(INFO, "systems_found.names"), comment="#", names=["Species_Id","Replicon_Id", "System_Id", "System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
+	df_info_detected["Proteins"] = df_info_detected.apply(lambda x : eval(x.Proteins), axis=1)
+	df_info_detected["System_number"] = df_info_detected.apply(lambda x : str(int(x.System_number)), axis=1)
+	df_info_detected = df_info_detected[df_info_detected.System_status == "D"].reset_index(drop=True)
+
+elif args.annotation:
+	# Permet de savoir si je peux fair mon fichier
 
 	print("\n########################")
 	print("# Create annotation files")
 	print("########################\n")
-
-
-	DICT_SYSTEMS = create_dict_system(PROTEIN_FUNCTION)
 
 
 	print("\n------------------------")
@@ -278,7 +284,7 @@ if not args.stats_only and args.annotation:
 
 	# XXX Je crée le fichier ou je met mes systemes de mon analyse
 	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
-	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id","System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
+	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id", "System_Id", "System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
 
 	if os.path.isfile(os.path.join(INFO, "report_modif", "validated_tmp.report")) :
 		# XXX Pour les verifiés
@@ -294,6 +300,9 @@ if not args.stats_only and args.annotation:
 	print()
 	print("Done!")
 	print()
+
+# XXX Permet d'avoir un report plus complet avec plus d'information sur mes systemes seulement
+if not args.stats_only and args.annotation:
 
 	distance_max = create_dict_distance(FILE_DISTANCE)
 
@@ -371,6 +380,8 @@ if args.stats_only :
 		report_df_validated = pd.read_table(os.path.join(INFO, "report_modif", "validated.report"), comment="#")
 	report_df_detected = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"), comment="#")
 
+
+
 if args.stats or args.stats_only:
 
 	print("\n#################")
@@ -381,7 +392,6 @@ if args.stats or args.stats_only:
 	DICT_SPECIES = {kingdom:np.unique(df_info_detected.Phylum[df_info_detected.Kingdom == kingdom]).tolist() for kingdom in set(df_info_detected.Kingdom)}
 	DICT_SPECIES['Archaea'].append('Other')
 	DICT_SPECIES['Bacteria'].append('Other')
-
 	# BUG Je vais avoir besoin d'utiliser la fonction set_df_info_system() pour avoir des info dont j'ai besoin dans les fonctions suivantes
 
 	if args.wanted :
@@ -389,6 +399,7 @@ if args.stats or args.stats_only:
 	else :
 		LIST_WANTED = np.unique(df_info_detected.Phylum).tolist()
 		DICT_SPECIES_WANTED = DICT_SPECIES
+
 
 	PATH_TO_DATAFRAME = os.path.join(OUTPUT,"statistics")
 	create_folder(os.path.join(PATH_TO_DATAFRAME, "xlsx"))

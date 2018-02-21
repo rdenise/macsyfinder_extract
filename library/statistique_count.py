@@ -14,7 +14,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import seaborn as sns
+import seaborn as sns; sns.set();
 import glob
 import json
 from weasyprint import HTML
@@ -67,7 +67,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 	value_counts_series = report_df.groupby("System_Id").Gene.value_counts()
 	info_tab = pd.read_table(INFO_TAB, index_col=0, names=["Taxon_id", "Name", "Kingdom", "Phylum", "Lineage", "NC_ids"])
 
-	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_name","System_name", "System_status", "System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
+	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_name", "System_Id", "System_name", "System_status", "System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
 	for my_index in df_info_system.index :
 		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
 
@@ -96,6 +96,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 
 
 		df_info_system.loc[my_index, "System_name"] = System
+		df_info_system.loc[my_index, "System_Id"] = my_index
 		df_info_system.loc[my_index, "Replicon_name"] = Replicon
 		df_info_system.loc[my_index, "Species_Id"] = ".".join(Replicon.split(".")[:-1])
 
@@ -252,10 +253,12 @@ def systems_count(df_info_system, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
 	df_count_system = pd.DataFrame(0, index=miindex, columns=LIST_SYSTEMS)
 
 	# XXX on prend ici que le nombre d'espèce avec au moins 1 systemes (les doublons détectés pas comptés)
-
 	for kingdom in speciesDict :
 		for phylum in speciesDict[kingdom] :
-			df_count_system.loc[(kingdom, phylum)] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts()
+			#print(df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts())
+			mini_tab = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))]
+			if not mini_tab.empty :
+				df_count_system.loc[(kingdom, phylum)] = mini_tab.sort_values(["System_name", "System_Id"]).drop_duplicates(subset=["Replicon_Id","System_name", "System_number"]).System_name.value_counts()
 
 		df_count_system.loc[(kingdom,"Other")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
 		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
