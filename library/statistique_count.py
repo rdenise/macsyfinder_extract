@@ -67,7 +67,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 	value_counts_series = report_df.groupby("System_Id").Gene.value_counts()
 	info_tab = pd.read_table(INFO_TAB, index_col=0, names=["Taxon_id", "Name", "Kingdom", "Phylum", "Lineage", "NC_ids"])
 
-	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_name", "System_Id", "System_name", "System_status", "System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
+	df_info_system = pd.DataFrame(index=value_counts_series.index.levels[0], columns=["Species_Id","Replicon_name", "System_Id", "System_name", "System_status", "System_number","Proteins", "Kingdom", "Phylum", "Lineage", "Species"])
 	for my_index in df_info_system.index :
 		df_info_system.set_value(my_index, "Proteins", value_counts_series.loc[my_index].to_dict())
 
@@ -103,6 +103,7 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 		df_info_system.loc[my_index, "Kingdom"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Kingdom"]
 		df_info_system.loc[my_index, "Phylum"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Phylum"]
 		df_info_system.loc[my_index, "Lineage"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Lineage"]
+		df_info_system.loc[my_index, "Species"] = info_tab.loc[df_info_system.loc[my_index, "Species_Id"], "Name"]
 
 	df_info_system["System_status"] = status
 	df_info_system.to_csv(w_file, sep="\t", index=False, header=False)
@@ -258,7 +259,7 @@ def systems_count(df_info_system, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
 			#print(df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts())
 			mini_tab = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))]
 			if not mini_tab.empty :
-				df_count_system.loc[(kingdom, phylum)] = mini_tab.sort_values(["System_name", "System_Id"]).drop_duplicates(subset=["Replicon_Id","System_name", "System_number"]).System_name.value_counts()
+				df_count_system.loc[(kingdom, phylum)] = mini_tab.sort_values(["System_name", "System_Id"]).drop_duplicates(subset=["Replicon_name","System_name", "System_number"]).System_name.value_counts()
 
 		df_count_system.loc[(kingdom,"Other")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
 		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
@@ -615,9 +616,8 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 
 
 	# XXX Pour avoir le chemin des hmm
-	out_tmp = "tmp_{}".format(time.strftime("%Y%m%d"))
+	out_tmp = "tmp_{}_validated".format(time.strftime("%Y%m%d"))
 	all_xml = glob.glob(os.path.join(Config(cfg_file=config_file, out_dir=out_tmp).profile_dir, "*hmm"))
-	shutil.rmtree(out_tmp)
 
 	list_profiles = [os.path.basename(profile)[:-4] for profile in all_xml]
 
@@ -676,6 +676,7 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 			count_and_write_system_found_protein_step1(group, w_file)
 
 
+	shutil.rmtree(out_tmp, ignore_errors=True)
 	return
 
 ##########################################################################################

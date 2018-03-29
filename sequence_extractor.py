@@ -265,9 +265,7 @@ if not args.stats_only :
 
 if os.path.isfile(os.path.join(INFO, "systems_found.names")) :
 	# XXX Permet ici de savoir si j'ai déjà mon fichier donc pas besoins de le refaire
-	df_info_detected = pd.read_table(os.path.join(INFO, "systems_found.names"), comment="#", names=["Species_Id","Replicon_Id", "System_Id", "System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])
-	df_info_detected["Proteins"] = df_info_detected.apply(lambda x : eval(x.Proteins), axis=1)
-	df_info_detected["System_number"] = df_info_detected.apply(lambda x : str(int(x.System_number)), axis=1)
+	df_info_detected = read_systems_found(os.path.join(INFO, "systems_found.names"))
 	df_info_detected = df_info_detected[df_info_detected.System_status == "D"].reset_index(drop=True)
 
 elif args.annotation:
@@ -284,7 +282,7 @@ elif args.annotation:
 
 	# XXX Je crée le fichier ou je met mes systemes de mon analyse
 	info_file = open(os.path.join(INFO,"systems_found.names"), "w")
-	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_Id", "System_Id", "System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage"])))
+	info_file.write("# {}\n".format("\t".join(["Species_Id","Replicon_name", "System_Id", "System_name","System_status","System_number","Proteins", "Kingdom", "Phylum", "Lineage", "Species"])))
 
 	if os.path.isfile(os.path.join(INFO, "report_modif", "validated_tmp.report")) :
 		# XXX Pour les verifiés
