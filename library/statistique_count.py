@@ -259,7 +259,7 @@ def systems_count(df_info_system, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
 			#print(df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts())
 			mini_tab = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))]
 			if not mini_tab.empty :
-				df_count_system.loc[(kingdom, phylum)] = mini_tab.sort_values(["System_name", "System_Id"]).drop_duplicates(subset=["Replicon_name","System_name", "System_number"]).System_name.value_counts()
+				df_count_system.loc[(kingdom, phylum)] = mini_tab.drop_duplicates(subset=["Species_Id","System_name", "System_number"]).System_name.value_counts()
 
 		df_count_system.loc[(kingdom,"Other")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
 		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
