@@ -285,7 +285,7 @@ def fill_reportdf_validated(df_report_validated, df_found, folder):
     #reorder and reset index for sub_report
     #a finir normalement c'est fini
     df_report_validated = new_df_report_validated.reset_index()[['NewName', 'Hit_Id', 'Replicon_name', "Sequence_length", 'Gene', 'Reference_system', 'Predicted_system', "System_Id", "System_status","Multi_copy", 'Kingdom', 'Phylum', "Lineage", "Species"]].sort_values(['System_Id']).reset_index(drop=True)
-
+    df_report_validated.rename(columns={'Species': 'Species_name'}, inplace=True)
 
     #df_report_validated.to_excel(os.path.join(folder, "report_modif_validated.xlsx"),index=False)
     df_report_validated.to_csv(os.path.join(folder, "validated.report"),index=False, sep="\t")
