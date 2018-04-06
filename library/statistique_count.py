@@ -257,14 +257,14 @@ def systems_count(df_info_system, PATH_TO_DATAFRAME, list_wanted, speciesDict) :
 	for kingdom in speciesDict :
 		for phylum in speciesDict[kingdom] :
 			#print(df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))].System_name.value_counts())
-			mini_tab = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Lineage.str.contains(phylum))]
+			mini_tab = df_info_system[(df_info_system.System_number == "1") & (df_info_system.Lineage.str.contains(phylum))]
 			if not mini_tab.empty :
 				df_count_system.loc[(kingdom, phylum)] = mini_tab.drop_duplicates(subset=["Species_Id","System_name", "System_number"]).System_name.value_counts()
 
-		df_count_system.loc[(kingdom,"Other")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
-		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic")) & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
+		df_count_system.loc[(kingdom,"Other")] = df_info_system[(df_info_system.System_number == "1") & ~(df_info_system.Lineage.str.contains("|".join(list_wanted)))  & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
+		df_count_system.loc[(kingdom,"Total_system")] = df_info_system[(df_info_system.System_number == "1") & (df_info_system.Kingdom == kingdom)].System_name.value_counts()
 
-	df_count_system.loc[("Summary_total","")] = df_info_system[((df_info_system.System_number == "1") | (df_info_system.System_name == "generic"))].System_name.value_counts()
+	df_count_system.loc[("Summary_total","")] = df_info_system[(df_info_system.System_number == "1")].System_name.value_counts()
 	df_count_system.fillna(0, inplace=True)
 	df_count_system = df_count_system.astype(int)
 
