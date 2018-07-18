@@ -82,7 +82,8 @@ def set_df_info_system(report_df, w_file, INFO_TAB, DICT_SYSTEMS, status) :
 		    System = "T4bP"
 
 		# BUG car j'ai des protéines echangeable donc des T4PM_comC dans des T4P ... donc ici c'est pas bon
-		if System.lower() not in ["generic", "generique", "t4bp"] :
+		#if System.lower() not in ["generic", "generique", "t4bp"] :
+		if System.lower() not in ["generic", "generique"] :
 			protein_in_system = list(df_info_system.loc[my_index, "Proteins"].keys())
 
 			if System == 'MSH':
@@ -622,7 +623,10 @@ def validated_stats(dat_validated, report_detected, config_file, PATH_TO_FIGURE,
 	list_profiles = [os.path.basename(profile)[:-4] for profile in all_xml]
 
 	# XXX On importe le dataframe et on le reduit sur seulement les systems presents dans gembases
-	df_dat_validated = pd.read_table(dat_validated, names=["SeqId", "Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Species_name", "Kingdom", "Phylum", "Notes"], comment="#")
+	try :
+		df_dat_validated = pd.read_table(dat_validated, names=["SeqId", "Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Species_name", "Kingdom", "Phylum", "Notes", "Reference"], comment="#")
+	except IndexError :
+		df_dat_validated = pd.read_table(dat_validated, names=["SeqId", "Replicon_name","Gene","System_name","System_Id","Family","In_gembases", "Species_name", "Kingdom", "Phylum", "Notes"], comment="#")
 	df_dat_validated = df_dat_validated[df_dat_validated.In_gembases == "Yes"].reset_index(drop=True)
 	df_dat_validated = df_dat_validated[df_dat_validated.Gene.isin(list_profiles)].reset_index(drop=True)
 

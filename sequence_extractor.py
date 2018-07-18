@@ -243,6 +243,13 @@ if args.veriFile :
 	create_folder(PATH_FASTA_VALIDATED)
 	report_df_validated = create_validated_fasta(list_file_validated, PROTEIN_FUNCTION, veriFile, veriData, INFO)
 
+# XXX Dernière étape les stats
+if args.stats_only :
+	# XXX Debug si j'ai enregister les df_report dans des fichiers séparés.
+	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
+		report_df_validated = pd.read_table(os.path.join(INFO, "report_modif", "validated.report"), comment="#")
+	report_df_detected = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"), comment="#")
+
 if not args.stats_only :
 	# XXX Première liste de fichiers détectés
 	print("\n#################")
@@ -370,13 +377,6 @@ if args.cutoff :
 		PATH_FASTA_DETECTED_CUTOFF = os.path.join(OUTPUT, "fasta_detected", "cut_off")
 		cut_seq_fasta_file(list_file_detected, PATH_FASTA_DETECTED_CUTOFF, INFO, file_cutoff=args.cutoff)
 
-# XXX Dernière étape les stats
-
-if args.stats_only :
-	# XXX Debug si j'ai enregister les df_report dans des fichiers séparés.
-	if os.path.isfile(os.path.join(INFO, "report_modif", "validated.report")) :
-		report_df_validated = pd.read_table(os.path.join(INFO, "report_modif", "validated.report"), comment="#")
-	report_df_detected = pd.read_table(os.path.join(INFO, "report_modif", "detected.report"), comment="#")
 
 
 

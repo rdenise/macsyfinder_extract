@@ -72,7 +72,7 @@ def get_right_name(gene_name, gene_system):
 def set_name(row, dict_count) :
 
 	"""
-	Funtion that chage the name of the columns Replicon_name and return the new name
+	Funtion that change the name of the columns Replicon_name and return the new name
 
 	:param row: The row of a dataframe pandas
 	:type: Pandas.Series
