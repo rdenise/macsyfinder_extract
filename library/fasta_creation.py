@@ -228,6 +228,73 @@ def find_in_fasta(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION, con
 
 ##########################################################################################
 ##########################################################################################
+
+def find_in_fasta_speed(fileFasta, fileReport, listOfFile, INFO, PROTEIN_FUNCTION, config_file):
+
+	"""
+	This function is used to create the fasta with MacSyFinder hits found
+
+	:param fileFasta: name of the fasta database used in the MacSyfinder analysis
+	:type: str
+	:param fileReport: name of the file .report of the MacSyFinder analysis
+	:type: str
+	:param listOfFile: list of all the file where the sequences will be write (one for each kind of protein)
+	:type: list of str
+	:param INFO: absolute path of the info_folder
+	:type: str
+	:param PROTEIN_FUNCTION: dictionnary return by the function set_params.set_dict_cutoff
+	:type: dict
+	:param config_file: the name of the config file of macsyfinder
+	:type: str
+	:return: The report table with the new name at the end
+	:rtype: pandas.DataFrame
+	"""
+
+	list_handle = [open(my_file,"w") for my_file in listOfFile]
+
+	report_table = extract_protein(fileReport, INFO, PROTEIN_FUNCTION, config_file)
+	shutil.rmtree("tmp_{}".format(time.strftime("%Y%m%d")))
+	seqindex = SeqIO.index(open(fileFasta), 'fasta')
+
+	print("\n-----------------")
+	print("# Writing ...")
+	print("-----------------\n")
+
+	progression=1
+	seq_wanted = report_table.shape[0]
+	report_table.set_index("Hit_Id", inplace=True)
+
+	for seq in report_table.index :
+		sys.stdout.write("{:.2f}% : {}/{} sequences wanted found\r".format(progression/float(seq_wanted)*100, progression,seq_wanted))
+		sys.stdout.flush()
+		progression += 1
+
+		seqindex[seq].description = ''
+		seqindex[seq].id = report_table.loc[seq.id, "NewName"]
+		seqindex[seq].name = ''
+
+		if report_table.loc[seqindex[seq].id, "Gene"] in PROTEIN_FUNCTION :
+			writing_file = re.search('[a-zA-Z0-9/_]+{}\.fasta'.format(PROTEIN_FUNCTION[keys_genes[index]]), "\t".join(listOfFile)).group(0)
+
+			SeqIO.write(seqindex[seq], list_handle[listOfFile.index(writing_file)], "fasta")
+		else :
+			sys.exit("ERROR:: Function not known : {}".format(keys_genes[index]))
+
+	print()
+	print("Done!")
+
+	# XXX Close all file
+	for open_file in list_handle:
+		open_file.close()
+
+	print("\n#################")
+	print("# File wrote")
+	print("#################\n")
+
+	return report_table
+
+##########################################################################################
+##########################################################################################
 def write_fasta_multithreads(fileFasta, listOfFile, wanted, PROTEIN_FUNCTION, number_total):
 
 	'''
@@ -254,7 +321,7 @@ def write_fasta_multithreads(fileFasta, listOfFile, wanted, PROTEIN_FUNCTION, nu
 	writing_list = [os.path.join(process_directory, os.path.basename(my_file)) for my_file in listOfFile]
 	list_handle = [open(os.path.join(process_directory, os.path.basename(my_file)),"w") for my_file in listOfFile]
 
-	seqiter = SeqIO.to_dict(SeqIO.parse(open(fileFasta), 'fasta'))
+	seqiter = SeqIO.index(open(fileFasta), 'fasta')
 
 	for index, line in wanted_modif.loc[[Replicon]].iterrows() :
 		seqiter[line.Hit_Id].description = ''

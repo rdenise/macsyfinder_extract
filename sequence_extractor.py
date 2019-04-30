@@ -262,7 +262,7 @@ if not args.stats_only :
 
 	# XXX Je teste si je suis en multi_thread ou pas
 	if args.number_proc == 1  :
-		report_df_detected = find_in_fasta(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, args.config_file)
+		report_df_detected = find_in_fasta_speed(FASTA, REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, args.config_file)
 	else :
 		report_df_detected = find_in_fasta_multithreads(glob.glob(os.path.join(FASTA, "*")), REPORT, list_file_detected, INFO, PROTEIN_FUNCTION, int(args.number_proc), args.config_file)
 
